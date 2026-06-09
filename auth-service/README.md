@@ -4,10 +4,13 @@ Authentication, authorization, and audit service built in Go.
 
 ## Endpoints
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/health` | No | Health check |
-| GET | `/whoami` | Bearer JWT | Identity and role info |
+| Method | Path | Auth | Required Permission | Description |
+|---|---|---|---|---|
+| GET | `/health` | No | — | Health check |
+| GET | `/whoami` | Bearer JWT | — | Identity and role info |
+| GET | `/projects` | Bearer JWT | read | List projects |
+| POST | `/projects` | Bearer JWT | write | Create project |
+| DELETE | `/projects` | Bearer JWT | delete | Delete project |
 
 ## Architecture
 
