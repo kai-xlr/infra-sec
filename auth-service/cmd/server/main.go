@@ -5,10 +5,17 @@ import (
 	"net/http"
 
 	"auth-service/internal/api"
+	"auth-service/internal/audit"
 	"auth-service/internal/middleware"
 )
 
 func main() {
+	auditLogger, err := audit.NewLogger("audit.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer auditLogger.Close()
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", api.HealthHandler)
@@ -19,13 +26,13 @@ func main() {
 	projects := http.HandlerFunc(api.ProjectsHandler)
 
 	readProjects :=
-		middleware.RequirePermission("read")(projects)
+		middleware.RequirePermission("read", "project", auditLogger)(projects)
 
 	writeProjects :=
-		middleware.RequirePermission("write")(projects)
+		middleware.RequirePermission("write", "project", auditLogger)(projects)
 
 	deleteProjects :=
-		middleware.RequirePermission("delete")(projects)
+		middleware.RequirePermission("delete", "project", auditLogger)(projects)
 
 	protected.Handle("/projects", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

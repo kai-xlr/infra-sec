@@ -1,26 +1,27 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
 
+	"auth-service/internal/audit"
 	"auth-service/internal/models"
 	"auth-service/internal/rbac"
 )
 
-func RequirePermission(action string) func(http.Handler) http.Handler {
+func RequirePermission(action string, resource string, auditLogger *audit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claimsValue := r.Context().Value(models.ClaimsKey)
 
 			claims, ok := claimsValue.(*models.CustomClaims)
 			if !ok || claims == nil {
-				log.Printf(
-					"role=%s action=%s decision=%s",
-					"UNKNOWN",
-					action,
-					"DENY",
-				)
+				auditLogger.Log(audit.Event{
+					User:     "UNKNOWN",
+					Role:     "UNKNOWN",
+					Action:   action,
+					Resource: resource,
+					Result:   "deny",
+				})
 
 				http.Error(
 					w,
@@ -32,17 +33,18 @@ func RequirePermission(action string) func(http.Handler) http.Handler {
 
 			allowed := rbac.Authorize(claims.Role, action)
 
-			decision := "DENY"
+			result := "deny"
 			if allowed {
-				decision = "ALLOW"
+				result = "allow"
 			}
 
-			log.Printf(
-				"role=%s action=%s decision=%s",
-				claims.Role,
-				action,
-				decision,
-			)
+			auditLogger.Log(audit.Event{
+				User:     claims.Subject,
+				Role:     claims.Role,
+				Action:   action,
+				Resource: resource,
+				Result:   result,
+			})
 
 			if !allowed {
 				http.Error(
