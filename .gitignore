@@ -20,6 +20,7 @@ target/
 
 # Session reference
 cont.txt
+session.json
 
 # OS
 .DS_Store

@@ -2,6 +2,19 @@
 
 Authentication, authorization, and audit service built in Go.
 
+## Quickstart
+
+```bash
+# from repo root
+make build-go      # or: cd auth-service && go build ./...
+make test-go       # or: cd auth-service && go test ./...
+make run           # start server on :8080
+make token ROLE=admin   # generate a test JWT
+
+# or just:
+cd auth-service && go run ./cmd/server/
+```
+
 ## Audit Log
 
 Every authorization decision is recorded as a JSON event in `audit.log`:
@@ -23,13 +36,16 @@ Every authorization decision is recorded as a JSON event in `audit.log`:
 ## Architecture
 
 ```
-cmd/server/       — entry point
-internal/auth/    — JWT parsing and validation
-internal/middleware/ — auth middleware
-internal/api/     — HTTP handlers
-internal/models/  — shared types
-internal/rbac/    — role-based authorization
-internal/audit/   — structured audit logging (JSON, append-only)
+cmd/              — entry point
+  server/         — main server
+  token/          — JWT generator for testing
+internal/
+  auth/           — JWT parsing and validation
+  middleware/     — auth middleware & RBAC enforcement
+  api/            — HTTP handlers
+  models/         — shared types (CustomClaims, ClaimsKey)
+  rbac/           — role-based authorization
+  audit/          — structured audit logging (JSON, append-only)
 tests/            — integration and benchmark tests
 docs/             — architecture and incident docs
 ```

@@ -31,6 +31,18 @@ assert!(engine.evaluate("viewer", "read"));
 assert!(!engine.evaluate("viewer", "write"));
 ```
 
+## Quickstart
+
+```bash
+# from repo root
+make build-rust     # or: cargo build --manifest-path policy-engine/Cargo.toml
+make test-rust      # or: cargo test --manifest-path policy-engine/Cargo.toml
+make bench          # or: cargo bench --manifest-path policy-engine/Cargo.toml
+
+# or just:
+cd policy-engine && cargo test
+```
+
 ## Benchmarks
 
 ```text
@@ -39,4 +51,4 @@ single evaluation    — ns/op, allocations
 10000 evaluations    — ns/op, allocations
 ```
 
-Run with `cargo bench`.
+Run with `make bench` or `cargo bench`.

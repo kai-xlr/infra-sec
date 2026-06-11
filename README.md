@@ -9,6 +9,18 @@ Go & Rust security infrastructure: auth, policy, governance, and AI agent author
 | `auth-service/` | Go | JWT auth, RBAC, audit logging, REST API |
 | `policy-engine/` | Rust | Policy parsing, evaluation, decision caching |
 
+## Quickstart
+
+```bash
+make build          # build all services
+make test           # run all tests (Go + Rust)
+make run            # start auth server on :8080
+make e2e            # full integration test suite
+make token ROLE=admin  # generate a test JWT
+```
+
+Requires Go ≥1.22 and Rust ≥1.75.
+
 ## Phases
 
 | Phase | Timeline | Focus |
