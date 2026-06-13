@@ -22,6 +22,9 @@ target/
 cont.txt
 session.json
 
+# Audit log
+auth-service/audit.log
+
 # OS
 .DS_Store
 Thumbs.db
