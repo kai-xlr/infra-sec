@@ -26,12 +26,28 @@ Every authorization decision is recorded as a JSON event in `audit.log`:
 ## Endpoints
 
 | Method | Path | Auth | Required Permission | Description |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
+| POST | `/auth/login` | No | — | Authenticate, returns JWT |
 | GET | `/health` | No | — | Health check |
 | GET | `/whoami` | Bearer JWT | — | Identity and role info |
 | GET | `/projects` | Bearer JWT | read | List projects |
 | POST | `/projects` | Bearer JWT | write | Create project |
 | DELETE | `/projects` | Bearer JWT | delete | Delete project |
+
+## Seeded Users
+
+On startup, the server seeds an admin user for testing:
+
+| Username | Password | Role |
+|---|---|---|
+| `admin` | `admin123` | `admin` |
+
+```bash
+curl -X POST localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+# → {"token":"eyJ..."}
+```
 
 ## Architecture
 
