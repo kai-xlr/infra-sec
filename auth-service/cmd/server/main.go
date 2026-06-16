@@ -19,6 +19,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", api.HealthHandler)
+	mux.HandleFunc("/auth/login", api.LoginHandler)
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("/whoami", api.WhoamiHandler)
