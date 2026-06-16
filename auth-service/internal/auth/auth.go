@@ -11,6 +11,28 @@ import (
 
 var jwtSecret = []byte("your-highly-secure-secret-key-change-in-production")
 
+func GenerateToken(role, subject string) (string, error) {
+	claims := &models.CustomClaims{
+		Username: subject,
+		Role:     role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   subject,
+			Issuer:    "auth-service",
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	signedToken, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return "", err
+	}
+
+	return signedToken, nil
+}
+
 func ValidateToken(tokenStr string) (*models.CustomClaims, error) {
 	claims := &models.CustomClaims{}
 
