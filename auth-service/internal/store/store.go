@@ -22,6 +22,8 @@ type InMemoryStore struct {
 	nextID int64
 }
 
+var _ Store = (*InMemoryStore)(nil)
+
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
 		users:  make(map[int64]*models.User),
@@ -52,6 +54,7 @@ func (s *InMemoryStore) CreateUser(username, passwordHash, role string) (*models
 
 	return user, nil
 }
+
 func (s *InMemoryStore) GetUser(id int64) (*models.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -62,6 +65,7 @@ func (s *InMemoryStore) GetUser(id int64) (*models.User, error) {
 	}
 	return user, nil
 }
+
 func (s *InMemoryStore) GetUserByUsername(username string) (*models.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -73,6 +77,7 @@ func (s *InMemoryStore) GetUserByUsername(username string) (*models.User, error)
 	}
 	return nil, fmt.Errorf("user with username '%s' not found", username)
 }
+
 func (s *InMemoryStore) ListUsers() ([]*models.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -108,6 +113,7 @@ func (s *InMemoryStore) UpdateUser(
 
 	return user, nil
 }
+
 func (s *InMemoryStore) DeleteUser(id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
