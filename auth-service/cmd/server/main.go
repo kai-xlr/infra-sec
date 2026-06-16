@@ -7,6 +7,7 @@ import (
 	"auth-service/internal/api"
 	"auth-service/internal/audit"
 	"auth-service/internal/middleware"
+	"auth-service/internal/store"
 )
 
 func main() {
@@ -16,10 +17,20 @@ func main() {
 	}
 	defer auditLogger.Close()
 
+	memStore := store.NewInMemoryStore()
+
+	adminHash := "$2a$10$dv0AcULv0j9unVsTZvIxpeaGYLryIi17tEiiZp./dUm4Ab8fXQvqq"
+	_, err = memStore.CreateUser("admin", adminHash, "admin")
+	if err != nil {
+		log.Fatalf("Failed to seed admin user: %v", err)
+	}
+
+	authHandler := api.NewAuthHandler(memStore)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", api.HealthHandler)
-	mux.HandleFunc("/auth/login", api.LoginHandler)
+	mux.HandleFunc("/auth/login", authHandler.LoginHandler)
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("/whoami", api.WhoamiHandler)
@@ -37,16 +48,12 @@ func main() {
 
 	protected.Handle("/projects", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-
 		case http.MethodGet:
 			readProjects.ServeHTTP(w, r)
-
 		case http.MethodPost:
 			writeProjects.ServeHTTP(w, r)
-
 		case http.MethodDelete:
 			deleteProjects.ServeHTTP(w, r)
-
 		default:
 			projects.ServeHTTP(w, r)
 		}
@@ -63,7 +70,6 @@ func main() {
 	)
 
 	log.Println("Server running on :8080")
-
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
 	}
