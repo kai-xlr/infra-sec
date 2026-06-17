@@ -18,6 +18,12 @@ type CreateUserRequest struct {
 	Role     string `json:"role"`
 }
 
+type UpdateUserRequest struct {
+	Username *string `json:"username"`
+	Password *string `json:"password"`
+	Role     *string `json:"role"`
+}
+
 type UserResponse struct {
 	ID        int64     `json:"id"`
 	Username  string    `json:"username"`
@@ -120,6 +126,81 @@ func (h *AuthHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	resp := UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Role:      user.Role,
+		CreatedAt: user.CreatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	defer r.Body.Close()
+
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid user ID format", http.StatusBadRequest)
+		return
+	}
+
+	existingUser, err := h.store.GetUser(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	var req UpdateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	updatedUsername := existingUser.Username
+	updatedPasswordHash := existingUser.PasswordHash
+	updatedRole := existingUser.Role
+
+	if req.Username != nil {
+		updatedUsername = *req.Username
+	}
+	if req.Role != nil {
+		updatedRole = *req.Role
+	}
+	if req.Password != nil {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		updatedPasswordHash = string(hashedPassword)
+	}
+
+	user, err := h.store.UpdateUser(id, updatedUsername, updatedPasswordHash, updatedRole)
+	if err != nil {
+		if strings.Contains(err.Error(), "already taken") {
+			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

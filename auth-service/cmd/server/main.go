@@ -93,9 +93,20 @@ func main() {
 	mux.Handle(
 		"/admin/users/{id}",
 		middleware.AuthMiddleware(
-			middleware.RequirePermission("read", "admin", auditLogger)(
-				http.HandlerFunc(authHandler.GetUserHandler),
-			),
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case http.MethodGet:
+					middleware.RequirePermission("read", "admin", auditLogger)(
+						http.HandlerFunc(authHandler.GetUserHandler),
+					).ServeHTTP(w, r)
+				case http.MethodPut:
+					middleware.RequirePermission("write", "admin", auditLogger)(
+						http.HandlerFunc(authHandler.UpdateUserHandler),
+					).ServeHTTP(w, r)
+				default:
+					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				}
+			}),
 		),
 	)
 
