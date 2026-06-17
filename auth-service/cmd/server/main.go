@@ -70,20 +70,18 @@ func main() {
 	)
 
 	adminMux := http.NewServeMux()
-	adminMux.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			middleware.RequirePermission("read", "admin", auditLogger)(
-				http.HandlerFunc(authHandler.ListUsersHandler),
-			).ServeHTTP(w, r)
-		case http.MethodPost:
-			middleware.RequirePermission("write", "admin", auditLogger)(
-				http.HandlerFunc(authHandler.CreateUserHandler),
-			).ServeHTTP(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
+	adminMux.Handle("/admin/users", middleware.RequireRole("admin", auditLogger)(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				authHandler.ListUsersHandler(w, r)
+			case http.MethodPost:
+				authHandler.CreateUserHandler(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}),
+	))
 
 	mux.Handle(
 		"/admin/users",
@@ -93,24 +91,20 @@ func main() {
 	mux.Handle(
 		"/admin/users/{id}",
 		middleware.AuthMiddleware(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch r.Method {
-				case http.MethodGet:
-					middleware.RequirePermission("read", "admin", auditLogger)(
-						http.HandlerFunc(authHandler.GetUserHandler),
-					).ServeHTTP(w, r)
-				case http.MethodPut:
-					middleware.RequirePermission("write", "admin", auditLogger)(
-						http.HandlerFunc(authHandler.UpdateUserHandler),
-					).ServeHTTP(w, r)
-				case http.MethodDelete:
-					middleware.RequirePermission("delete", "admin", auditLogger)(
-						http.HandlerFunc(authHandler.DeleteUserHandler),
-					).ServeHTTP(w, r)
-				default:
-					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-				}
-			}),
+			middleware.RequireRole("admin", auditLogger)(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch r.Method {
+					case http.MethodGet:
+						authHandler.GetUserHandler(w, r)
+					case http.MethodPut:
+						authHandler.UpdateUserHandler(w, r)
+					case http.MethodDelete:
+						authHandler.DeleteUserHandler(w, r)
+					default:
+						http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+					}
+				}),
+			),
 		),
 	)
 
