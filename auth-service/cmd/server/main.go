@@ -103,6 +103,10 @@ func main() {
 					middleware.RequirePermission("write", "admin", auditLogger)(
 						http.HandlerFunc(authHandler.UpdateUserHandler),
 					).ServeHTTP(w, r)
+				case http.MethodDelete:
+					middleware.RequirePermission("delete", "admin", auditLogger)(
+						http.HandlerFunc(authHandler.DeleteUserHandler),
+					).ServeHTTP(w, r)
 				default:
 					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				}
