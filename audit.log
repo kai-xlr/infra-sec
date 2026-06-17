@@ -1,0 +1,16 @@
+{"timestamp":"2026-06-17T22:23:08Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:23:08Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:23:08Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:27:51Z","user":"admin","role":"admin","action":"read","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:27:51Z","user":"admin","role":"admin","action":"read","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:27:51Z","user":"admin","role":"admin","action":"read","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:31:27Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:31:27Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:31:27Z","user":"admin","role":"admin","action":"read","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:31:27Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:34:51Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:34:51Z","user":"admin","role":"admin","action":"read","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:35:06Z","user":"admin","role":"admin","action":"write","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:35:06Z","user":"admin","role":"admin","action":"delete","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:35:06Z","user":"admin","role":"admin","action":"read","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:35:06Z","user":"admin","role":"admin","action":"delete","resource":"admin","result":"allow"}
