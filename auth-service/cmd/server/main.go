@@ -69,6 +69,27 @@ func main() {
 		middleware.AuthMiddleware(protected),
 	)
 
+	adminMux := http.NewServeMux()
+	adminMux.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			middleware.RequirePermission("read", "admin", auditLogger)(
+				http.HandlerFunc(authHandler.ListUsersHandler),
+			).ServeHTTP(w, r)
+		case http.MethodPost:
+			middleware.RequirePermission("write", "admin", auditLogger)(
+				http.HandlerFunc(authHandler.CreateUserHandler),
+			).ServeHTTP(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.Handle(
+		"/admin/users",
+		middleware.AuthMiddleware(adminMux),
+	)
+
 	log.Println("Server running on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)

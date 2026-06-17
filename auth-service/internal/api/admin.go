@@ -1,10 +1,28 @@
 package api
 
 import (
-	"auth-service/internal/models"
 	"encoding/json"
 	"net/http"
+	"strings"
+	"time"
+
+	"auth-service/internal/models"
+
+	"golang.org/x/crypto/bcrypt"
 )
+
+type CreateUserRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+type UserResponse struct {
+	ID        int64     `json:"id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
 
 func (h *AuthHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -23,5 +41,58 @@ func (h *AuthHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(users)
+	json.NewEncoder(w).Encode(users)
+}
+
+func (h *AuthHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	defer r.Body.Close()
+
+	contentType := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "application/json") {
+		http.Error(w, "Content-Type must be application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	var req CreateUserRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.Password) == "" || strings.TrimSpace(req.Role) == "" {
+		http.Error(w, "Username, password, and role are required", http.StatusBadRequest)
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	user, err := h.store.CreateUser(req.Username, string(hashedPassword), req.Role)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	resp := UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Role:      user.Role,
+		CreatedAt: user.CreatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
 }
