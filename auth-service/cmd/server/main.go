@@ -70,43 +70,33 @@ func main() {
 	)
 
 	adminMux := http.NewServeMux()
-	adminMux.Handle("/admin/users", middleware.RequireRole("admin", auditLogger)(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodGet:
-				authHandler.ListUsersHandler(w, r)
-			case http.MethodPost:
-				authHandler.CreateUserHandler(w, r)
-			default:
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			}
-		}),
-	))
+	adminMux.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			authHandler.ListUsersHandler(w, r)
+		case http.MethodPost:
+			authHandler.CreateUserHandler(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	adminMux.HandleFunc("/admin/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			authHandler.GetUserHandler(w, r)
+		case http.MethodPut:
+			authHandler.UpdateUserHandler(w, r)
+		case http.MethodDelete:
+			authHandler.DeleteUserHandler(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
-	mux.Handle(
-		"/admin/users",
-		middleware.AuthMiddleware(adminMux),
+	adminHandler := middleware.AuthMiddleware(
+		middleware.RequireRole("admin", auditLogger)(adminMux),
 	)
-
-	mux.Handle(
-		"/admin/users/{id}",
-		middleware.AuthMiddleware(
-			middleware.RequireRole("admin", auditLogger)(
-				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					switch r.Method {
-					case http.MethodGet:
-						authHandler.GetUserHandler(w, r)
-					case http.MethodPut:
-						authHandler.UpdateUserHandler(w, r)
-					case http.MethodDelete:
-						authHandler.DeleteUserHandler(w, r)
-					default:
-						http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-					}
-				}),
-			),
-		),
-	)
+	mux.Handle("/admin/", adminHandler)
 
 	log.Println("Server running on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
