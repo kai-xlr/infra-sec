@@ -90,6 +90,15 @@ func main() {
 		middleware.AuthMiddleware(adminMux),
 	)
 
+	mux.Handle(
+		"/admin/users/{id}",
+		middleware.AuthMiddleware(
+			middleware.RequirePermission("read", "admin", auditLogger)(
+				http.HandlerFunc(authHandler.GetUserHandler),
+			),
+		),
+	)
+
 	log.Println("Server running on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
