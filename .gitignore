@@ -25,6 +25,9 @@ session.json
 # Audit log
 auth-service/audit.log
 
+# SQLite databases
+*.db
+
 # OS
 .DS_Store
 Thumbs.db

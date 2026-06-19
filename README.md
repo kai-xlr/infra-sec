@@ -6,7 +6,7 @@ Go & Rust security infrastructure: auth, policy, governance, and AI agent author
 
 | Service | Language | Description |
 |---|---|---|
-| `auth-service/` | Go | JWT auth, RBAC, audit logging, REST API |
+| `auth-service/` | Go | JWT auth, RBAC, audit logging, REST API, SQLite persistence |
 | `policy-engine/` | Rust | Policy parsing, evaluation, decision caching |
 
 ## Quickstart
