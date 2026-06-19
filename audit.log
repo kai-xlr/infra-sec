@@ -14,3 +14,9 @@
 {"timestamp":"2026-06-17T22:35:06Z","user":"admin","role":"admin","action":"delete","resource":"admin","result":"allow"}
 {"timestamp":"2026-06-17T22:35:06Z","user":"admin","role":"admin","action":"read","resource":"admin","result":"allow"}
 {"timestamp":"2026-06-17T22:35:06Z","user":"admin","role":"admin","action":"delete","resource":"admin","result":"allow"}
+{"timestamp":"2026-06-17T22:47:04Z","user":"admin","role":"admin","action":"ACCESS_ROLE_admin","resource":"/admin/users","result":"allow"}
+{"timestamp":"2026-06-17T22:47:04Z","user":"admin","role":"admin","action":"ACCESS_ROLE_admin","resource":"/admin/users","result":"allow"}
+{"timestamp":"2026-06-17T22:47:04Z","user":"admin","role":"admin","action":"ACCESS_ROLE_admin","resource":"/admin/users/2","result":"allow"}
+{"timestamp":"2026-06-17T22:47:05Z","user":"dev1","role":"developer","action":"ACCESS_ROLE_admin","resource":"/admin/users","result":"deny"}
+{"timestamp":"2026-06-17T22:47:09Z","user":"admin","role":"admin","action":"ACCESS_ROLE_admin","resource":"/admin/users/2","result":"allow"}
+{"timestamp":"2026-06-17T22:47:09Z","user":"admin","role":"admin","action":"ACCESS_ROLE_admin","resource":"/admin/users/2","result":"allow"}

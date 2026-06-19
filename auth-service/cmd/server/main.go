@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"auth-service/internal/api"
 	"auth-service/internal/audit"
@@ -17,15 +18,21 @@ func main() {
 	}
 	defer auditLogger.Close()
 
-	memStore := store.NewInMemoryStore()
+	sqlStore, err := store.NewSQLiteStore("users.db")
+	if err != nil {
+		log.Fatalf("Failed to initialize SQLite store: %v", err)
+	}
+	defer sqlStore.Close()
 
 	adminHash := "$2a$10$dv0AcULv0j9unVsTZvIxpeaGYLryIi17tEiiZp./dUm4Ab8fXQvqq"
-	_, err = memStore.CreateUser("admin", adminHash, "admin")
+	_, err = sqlStore.CreateUser("admin", adminHash, "admin")
 	if err != nil {
-		log.Fatalf("Failed to seed admin user: %v", err)
+		if !strings.Contains(err.Error(), "already exists") {
+			log.Fatalf("Failed to seed admin user: %v", err)
+		}
 	}
 
-	authHandler := api.NewAuthHandler(memStore)
+	authHandler := api.NewAuthHandler(sqlStore)
 
 	mux := http.NewServeMux()
 
