@@ -9,7 +9,10 @@ import (
 	"auth-service/internal/store"
 
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 )
+
+var loginLimiter = rate.NewLimiter(rate.Limit(5), 10)
 
 type AuthHandler struct {
 	store store.Store
@@ -29,6 +32,11 @@ type LoginResponse struct {
 }
 
 func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if !loginLimiter.Allow() {
+		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return

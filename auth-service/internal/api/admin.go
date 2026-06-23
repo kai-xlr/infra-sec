@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,21 @@ type UserResponse struct {
 	Username  string    `json:"username"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func getBcryptCost() int {
+	cost := bcrypt.DefaultCost
+	value := os.Getenv("BCRYPT_COST")
+	if value == "" {
+		return cost
+	}
+
+	parsedCost, err := strconv.Atoi(value)
+	if err != nil {
+		return cost
+	}
+
+	return parsedCost
 }
 
 func (h *AuthHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +92,22 @@ func (h *AuthHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	validRoles := map[string]bool{
+		"admin":     true,
+		"developer": true,
+		"viewer":    true,
+	}
+
+	if !validRoles[req.Role] {
+		http.Error(
+			w,
+			"Invalid role: must be admin, developer, or viewer",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), getBcryptCost())
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -186,10 +217,25 @@ func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 		updatedUsername = *req.Username
 	}
 	if req.Role != nil {
+		validRoles := map[string]bool{
+			"admin":     true,
+			"developer": true,
+			"viewer":    true,
+		}
+
+		if !validRoles[*req.Role] {
+			http.Error(
+				w,
+				"Invalid role: must be admin, developer, or viewer",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
 		updatedRole = *req.Role
 	}
 	if req.Password != nil {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*req.Password), getBcryptCost())
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
