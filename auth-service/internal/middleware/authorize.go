@@ -23,7 +23,7 @@ func RequirePermission(action string, resource string, auditLogger *audit.Logger
 					Result:   "deny",
 				})
 
-				http.Error(
+				jsonError(
 					w,
 					http.StatusText(http.StatusUnauthorized),
 					http.StatusUnauthorized,
@@ -47,7 +47,7 @@ func RequirePermission(action string, resource string, auditLogger *audit.Logger
 			})
 
 			if !allowed {
-				http.Error(
+				jsonError(
 					w,
 					http.StatusText(http.StatusForbidden),
 					http.StatusForbidden,

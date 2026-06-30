@@ -1,15 +1,27 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"auth-service/internal/api"
 	"auth-service/internal/audit"
 	"auth-service/internal/middleware"
 	"auth-service/internal/store"
 )
+
+func jsonError(w http.ResponseWriter, msg string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
 
 func main() {
 	auditLogger, err := audit.NewLogger("audit.log")
@@ -76,6 +88,16 @@ func main() {
 		middleware.AuthMiddleware(protected),
 	)
 
+	mux.Handle(
+		"/me",
+		middleware.AuthMiddleware(http.HandlerFunc(authHandler.MeHandler)),
+	)
+
+	mux.Handle(
+		"/auth/password",
+		middleware.AuthMiddleware(http.HandlerFunc(authHandler.PasswordChangeHandler)),
+	)
+
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -84,7 +106,7 @@ func main() {
 		case http.MethodPost:
 			authHandler.CreateUserHandler(w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 	adminMux.HandleFunc("/admin/users/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +118,7 @@ func main() {
 		case http.MethodDelete:
 			authHandler.DeleteUserHandler(w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 
@@ -105,8 +127,34 @@ func main() {
 	)
 	mux.Handle("/admin/", adminHandler)
 
-	log.Println("Server running on :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
-		log.Fatal(err)
+	requestLogger := log.New(os.Stdout, "", log.LstdFlags)
+	loggedMux := middleware.RequestLogger(requestLogger)(mux)
+
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: loggedMux,
 	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		log.Println("Server running on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	stop()
+	log.Println("Shutting down server...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exited cleanly")
 }

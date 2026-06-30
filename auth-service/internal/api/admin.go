@@ -30,6 +30,7 @@ type UserResponse struct {
 	Username  string    `json:"username"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func getBcryptCost() int {
@@ -49,13 +50,15 @@ func getBcryptCost() int {
 
 func (h *AuthHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	users, err := h.store.ListUsers()
+	roleFilter := r.URL.Query().Get("role")
+
+	users, err := h.store.ListUsers(roleFilter)
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -69,26 +72,26 @@ func (h *AuthHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	defer r.Body.Close()
 
 	contentType := r.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "application/json") {
-		http.Error(w, "Content-Type must be application/json", http.StatusUnsupportedMediaType)
+		jsonError(w, "Content-Type must be application/json", http.StatusUnsupportedMediaType)
 		return
 	}
 
 	var req CreateUserRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		jsonError(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
 	if strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.Password) == "" || strings.TrimSpace(req.Role) == "" {
-		http.Error(w, "Username, password, and role are required", http.StatusBadRequest)
+		jsonError(w, "Username, password, and role are required", http.StatusBadRequest)
 		return
 	}
 
@@ -99,7 +102,7 @@ func (h *AuthHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if !validRoles[req.Role] {
-		http.Error(
+		jsonError(
 			w,
 			"Invalid role: must be admin, developer, or viewer",
 			http.StatusBadRequest,
@@ -109,17 +112,17 @@ func (h *AuthHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) 
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), getBcryptCost())
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	user, err := h.store.CreateUser(req.Username, string(hashedPassword), req.Role)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			http.Error(w, err.Error(), http.StatusConflict)
+			jsonError(w, err.Error(), http.StatusConflict)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -128,6 +131,7 @@ func (h *AuthHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) 
 		Username:  user.Username,
 		Role:      user.Role,
 		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -137,29 +141,29 @@ func (h *AuthHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) 
 
 func (h *AuthHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	idStr := r.PathValue("id")
 	if idStr == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		jsonError(w, "Missing user ID", http.StatusBadRequest)
 		return
 	}
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
-		http.Error(w, "Invalid user ID format", http.StatusBadRequest)
+		jsonError(w, "Invalid user ID format", http.StatusBadRequest)
 		return
 	}
 
 	user, err := h.store.GetUser(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -168,6 +172,7 @@ func (h *AuthHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		Username:  user.Username,
 		Role:      user.Role,
 		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -176,36 +181,36 @@ func (h *AuthHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	defer r.Body.Close()
 
 	idStr := r.PathValue("id")
 	if idStr == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		jsonError(w, "Missing user ID", http.StatusBadRequest)
 		return
 	}
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
-		http.Error(w, "Invalid user ID format", http.StatusBadRequest)
+		jsonError(w, "Invalid user ID format", http.StatusBadRequest)
 		return
 	}
 
 	existingUser, err := h.store.GetUser(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	var req UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		jsonError(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
@@ -224,7 +229,7 @@ func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if !validRoles[*req.Role] {
-			http.Error(
+			jsonError(
 				w,
 				"Invalid role: must be admin, developer, or viewer",
 				http.StatusBadRequest,
@@ -237,7 +242,7 @@ func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 	if req.Password != nil {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*req.Password), getBcryptCost())
 		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 		updatedPasswordHash = string(hashedPassword)
@@ -246,10 +251,10 @@ func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 	user, err := h.store.UpdateUser(id, updatedUsername, updatedPasswordHash, updatedRole)
 	if err != nil {
 		if strings.Contains(err.Error(), "already taken") {
-			http.Error(w, err.Error(), http.StatusConflict)
+			jsonError(w, err.Error(), http.StatusConflict)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -258,6 +263,7 @@ func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 		Username:  user.Username,
 		Role:      user.Role,
 		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -266,29 +272,29 @@ func (h *AuthHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 
 func (h *AuthHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	idStr := r.PathValue("id")
 	if idStr == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		jsonError(w, "Missing user ID", http.StatusBadRequest)
 		return
 	}
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
-		http.Error(w, "Invalid user ID format", http.StatusBadRequest)
+		jsonError(w, "Invalid user ID format", http.StatusBadRequest)
 		return
 	}
 
 	err = h.store.DeleteUser(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 

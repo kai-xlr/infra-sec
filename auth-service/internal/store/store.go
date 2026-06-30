@@ -11,7 +11,7 @@ type Store interface {
 	CreateUser(username, passwordHash, role string) (*models.User, error)
 	GetUser(id int64) (*models.User, error)
 	GetUserByUsername(username string) (*models.User, error)
-	ListUsers() ([]*models.User, error)
+	ListUsers(role string) ([]*models.User, error)
 	UpdateUser(id int64, username, passwordHash, role string) (*models.User, error)
 	DeleteUser(id int64) error
 }
@@ -41,12 +41,14 @@ func (s *InMemoryStore) CreateUser(username, passwordHash, role string) (*models
 		}
 	}
 
+	now := time.Now().UTC()
 	user := &models.User{
 		ID:           s.nextID,
 		Username:     username,
 		PasswordHash: passwordHash,
 		Role:         role,
-		CreatedAt:    time.Now().UTC(),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
 	s.users[s.nextID] = user
@@ -78,13 +80,15 @@ func (s *InMemoryStore) GetUserByUsername(username string) (*models.User, error)
 	return nil, fmt.Errorf("user with username '%s' not found", username)
 }
 
-func (s *InMemoryStore) ListUsers() ([]*models.User, error) {
+func (s *InMemoryStore) ListUsers(role string) ([]*models.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	users := make([]*models.User, 0, len(s.users))
 	for _, u := range s.users {
-		users = append(users, u)
+		if role == "" || u.Role == role {
+			users = append(users, u)
+		}
 	}
 	return users, nil
 }
@@ -110,6 +114,7 @@ func (s *InMemoryStore) UpdateUser(
 	user.Username = username
 	user.PasswordHash = passwordHash
 	user.Role = role
+	user.UpdatedAt = time.Now().UTC()
 
 	return user, nil
 }

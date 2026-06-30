@@ -48,7 +48,8 @@ func (s *SQLiteStore) createTables() error {
 		username TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL,
 		role TEXT NOT NULL,
-		created_at TEXT NOT NULL
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL DEFAULT ''
 	);`
 
 	_, err := s.db.Exec(query)
@@ -67,18 +68,19 @@ func (s *SQLiteStore) CreateUser(username, passwordHash, role string) (*models.U
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	createdAt := time.Now().UTC()
+	now := time.Now().UTC()
 
 	query := `
-	INSERT INTO users (username, password_hash, role, created_at)
-	VALUES (?, ?, ?, ?);`
+	INSERT INTO users (username, password_hash, role, created_at, updated_at)
+	VALUES (?, ?, ?, ?, ?);`
 
 	result, err := s.db.Exec(
 		query,
 		username,
 		passwordHash,
 		role,
-		createdAt.Format(time.RFC3339),
+		now.Format(time.RFC3339),
+		now.Format(time.RFC3339),
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -97,7 +99,8 @@ func (s *SQLiteStore) CreateUser(username, passwordHash, role string) (*models.U
 		Username:     username,
 		PasswordHash: passwordHash,
 		Role:         role,
-		CreatedAt:    createdAt,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}, nil
 }
 
@@ -106,12 +109,13 @@ func (s *SQLiteStore) GetUser(id int64) (*models.User, error) {
 	defer s.mu.RUnlock()
 
 	query := `
-	SELECT id, username, password_hash, role, created_at 
+	SELECT id, username, password_hash, role, created_at, updated_at
 	FROM users 
 	WHERE id = ?;`
 
 	var user models.User
 	var createdAt string
+	var updatedAt string
 
 	err := s.db.QueryRow(query, id).Scan(
 		&user.ID,
@@ -119,6 +123,7 @@ func (s *SQLiteStore) GetUser(id int64) (*models.User, error) {
 		&user.PasswordHash,
 		&user.Role,
 		&createdAt,
+		&updatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -132,6 +137,11 @@ func (s *SQLiteStore) GetUser(id int64) (*models.User, error) {
 		return nil, fmt.Errorf("failed to parse created_at: %w", err)
 	}
 
+	user.UpdatedAt, err = time.Parse(time.RFC3339, updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse updated_at: %w", err)
+	}
+
 	return &user, nil
 }
 
@@ -140,12 +150,13 @@ func (s *SQLiteStore) GetUserByUsername(username string) (*models.User, error) {
 	defer s.mu.RUnlock()
 
 	query := `
-	SELECT id, username, password_hash, role, created_at 
+	SELECT id, username, password_hash, role, created_at, updated_at
 	FROM users 
 	WHERE username = ?;`
 
 	var user models.User
 	var createdAt string
+	var updatedAt string
 
 	err := s.db.QueryRow(query, username).Scan(
 		&user.ID,
@@ -153,6 +164,7 @@ func (s *SQLiteStore) GetUserByUsername(username string) (*models.User, error) {
 		&user.PasswordHash,
 		&user.Role,
 		&createdAt,
+		&updatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -166,18 +178,30 @@ func (s *SQLiteStore) GetUserByUsername(username string) (*models.User, error) {
 		return nil, fmt.Errorf("failed to parse created_at: %w", err)
 	}
 
+	user.UpdatedAt, err = time.Parse(time.RFC3339, updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse updated_at: %w", err)
+	}
+
 	return &user, nil
 }
 
-func (s *SQLiteStore) ListUsers() ([]*models.User, error) {
+func (s *SQLiteStore) ListUsers(role string) ([]*models.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	query := `
-	SELECT id, username, password_hash, role, created_at
-	FROM users;`
+	SELECT id, username, password_hash, role, created_at, updated_at
+	FROM users`
+	var args []interface{}
+	if role != "" {
+		query += " WHERE role = ?;"
+		args = append(args, role)
+	} else {
+		query += ";"
+	}
 
-	rows, err := s.db.Query(query)
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
@@ -188,6 +212,7 @@ func (s *SQLiteStore) ListUsers() ([]*models.User, error) {
 	for rows.Next() {
 		var user models.User
 		var createdAt string
+		var updatedAt string
 
 		err := rows.Scan(
 			&user.ID,
@@ -195,6 +220,7 @@ func (s *SQLiteStore) ListUsers() ([]*models.User, error) {
 			&user.PasswordHash,
 			&user.Role,
 			&createdAt,
+			&updatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user row: %w", err)
@@ -203,6 +229,11 @@ func (s *SQLiteStore) ListUsers() ([]*models.User, error) {
 		user.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse created_at for user %d: %w", user.ID, err)
+		}
+
+		user.UpdatedAt, err = time.Parse(time.RFC3339, updatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse updated_at for user %d: %w", user.ID, err)
 		}
 
 		users = append(users, &user)
@@ -218,12 +249,13 @@ func (s *SQLiteStore) UpdateUser(id int64, username, passwordHash, role string) 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	now := time.Now().UTC()
 	query := `
 	UPDATE users
-	SET username = ?, password_hash = ?, role = ?
+	SET username = ?, password_hash = ?, role = ?, updated_at = ?
 	WHERE id = ?;`
 
-	result, err := s.db.Exec(query, username, passwordHash, role, id)
+	result, err := s.db.Exec(query, username, passwordHash, role, now.Format(time.RFC3339), id)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return nil, fmt.Errorf("username '%s' is already taken", username)
@@ -242,9 +274,10 @@ func (s *SQLiteStore) UpdateUser(id int64, username, passwordHash, role string) 
 
 	var user models.User
 	var createdAt string
+	var updatedAt string
 
 	selectQuery := `
-	SELECT id, username, password_hash, role, created_at
+	SELECT id, username, password_hash, role, created_at, updated_at
 	FROM users
 	WHERE id = ?;`
 
@@ -254,6 +287,7 @@ func (s *SQLiteStore) UpdateUser(id int64, username, passwordHash, role string) 
 		&user.PasswordHash,
 		&user.Role,
 		&createdAt,
+		&updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch updated user: %w", err)
@@ -262,6 +296,11 @@ func (s *SQLiteStore) UpdateUser(id int64, username, passwordHash, role string) 
 	user.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse created_at: %w", err)
+	}
+
+	user.UpdatedAt, err = time.Parse(time.RFC3339, updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse updated_at: %w", err)
 	}
 
 	return &user, nil

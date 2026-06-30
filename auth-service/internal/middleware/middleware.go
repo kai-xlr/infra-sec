@@ -14,7 +14,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			jsonError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
@@ -22,7 +22,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		claims, err := auth.ValidateToken(tokenStr)
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			jsonError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 

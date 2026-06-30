@@ -22,7 +22,7 @@ func RequireRole(role string, auditLogger *audit.Logger) func(http.Handler) http
 					Result:   "deny",
 				})
 
-				http.Error(
+				jsonError(
 					w,
 					http.StatusText(http.StatusUnauthorized),
 					http.StatusUnauthorized,
@@ -46,7 +46,7 @@ func RequireRole(role string, auditLogger *audit.Logger) func(http.Handler) http
 			})
 
 			if !allowed {
-				http.Error(
+				jsonError(
 					w,
 					http.StatusText(http.StatusForbidden),
 					http.StatusForbidden,

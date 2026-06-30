@@ -22,7 +22,8 @@ target/
 cont.txt
 session.json
 
-# Audit log
+# Audit logs
+audit.log
 auth-service/audit.log
 
 # SQLite databases
