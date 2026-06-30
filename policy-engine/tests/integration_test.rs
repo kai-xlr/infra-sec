@@ -4,10 +4,10 @@ use policy_engine::policy::Policy;
 #[test]
 fn integration_viewer_read() {
     let engine = Engine::new(vec![
-        Policy::new("admin", "write"),
-        Policy::new("admin", "delete"),
-        Policy::new("developer", "write"),
-        Policy::new("viewer", "read"),
+        Policy::new("admin", "write", "allow"),
+        Policy::new("admin", "delete", "allow"),
+        Policy::new("developer", "write", "allow"),
+        Policy::new("viewer", "read", "allow"),
     ]);
 
     assert!(engine.evaluate("viewer", "read"));
@@ -18,10 +18,10 @@ fn integration_viewer_read() {
 #[test]
 fn integration_admin_all() {
     let engine = Engine::new(vec![
-        Policy::new("admin", "write"),
-        Policy::new("admin", "delete"),
-        Policy::new("developer", "write"),
-        Policy::new("viewer", "read"),
+        Policy::new("admin", "write", "allow"),
+        Policy::new("admin", "delete", "allow"),
+        Policy::new("developer", "write", "allow"),
+        Policy::new("viewer", "read", "allow"),
     ]);
 
     // admin has no explicit read in this policy set

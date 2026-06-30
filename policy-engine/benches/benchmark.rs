@@ -4,10 +4,10 @@ use policy_engine::policy::Policy;
 
 fn build_engine() -> Engine {
     Engine::new(vec![
-        Policy::new("admin", "write"),
-        Policy::new("admin", "delete"),
-        Policy::new("developer", "write"),
-        Policy::new("viewer", "read"),
+        Policy::new("admin", "write", "allow"),
+        Policy::new("admin", "delete", "allow"),
+        Policy::new("developer", "write", "allow"),
+        Policy::new("viewer", "read", "allow"),
     ])
 }
 
