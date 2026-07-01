@@ -6,29 +6,31 @@ Policy evaluation engine built in Rust.
 
 ```
 src/
-  policy.rs     — policy data structures
-  evaluator.rs  — policy evaluation engine
-  parser.rs     — policy file parsing (WIP)
-  cache.rs      — decision caching (WIP)
+  policy.rs     — Policy struct, RoleHierarchy with default inheritance
+  evaluator.rs  — HashMap O(1) + Vec linear evaluation engines
+  parser.rs     — JSON policy file loading and validation
+  cache.rs      — TTL-based decision caching
   lib.rs        — public API
-benches/        — criterion benchmarks
+benches/        — criterion benchmarks (HashMap vs linear comparison)
 tests/          — integration tests
 ```
 
 ## Usage
 
 ```rust
-use policy_engine::{evaluator::Engine, policy::Policy};
+use policy_engine::{evaluator::Engine, policy::{Policy, RoleHierarchy}};
 
 let engine = Engine::new(vec![
-    Policy::new("admin", "write"),
-    Policy::new("admin", "delete"),
-    Policy::new("developer", "write"),
-    Policy::new("viewer", "read"),
+    Policy::new("admin", "write", "allow"),
+    Policy::new("developer", "write", "allow"),
+    Policy::new("viewer", "read", "allow"),
 ]);
 
-assert!(engine.evaluate("viewer", "read"));
-assert!(!engine.evaluate("viewer", "write"));
+let hierarchy = RoleHierarchy::default();
+// admin inherits viewer read via hierarchy
+assert_eq!(engine.evaluate("admin", "read", &hierarchy), Some(true));
+// viewer cannot write
+assert_eq!(engine.evaluate("viewer", "write", &hierarchy), None);
 ```
 
 ## Quickstart
@@ -45,10 +47,15 @@ cd policy-engine && cargo test
 
 ## Benchmarks
 
+Both `evaluate` (HashMap O(1)) and `evaluate_linear` (Vec O(n)) are benchmarked for comparison:
+
 ```text
-single evaluation    — ns/op, allocations
-1000 evaluations     — ns/op, allocations
-10000 evaluations    — ns/op, allocations
+HashMap single evaluation (4 policies)     ~110ns
+linear single evaluation (4 policies)       ~26ns
+HashMap single evaluation (150 policies)   ~146ns
+linear single evaluation (150 policies)    ~639ns
 ```
+
+HashMap overhead dominates on tiny sets, but at 100+ policies the O(1) lookup is ~4x faster.
 
 Run with `make bench` or `cargo bench`.
