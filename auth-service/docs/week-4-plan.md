@@ -21,10 +21,10 @@ Add integration tests for all Go API endpoints, enhance the auth API with user-f
 
 | # | Issue | File(s) | Behavior |
 |---|---|---|---|
-| 3 | [#44](https://github.com/kai-xlr/infra-sec/issues/44) | `internal/api/auth.go` | Return current user's username and role from JWT claims — no DB lookup needed |
-| 4 | [#45](https://github.com/kai-xlr/infra-sec/issues/45) | `internal/api/auth.go` | `PUT /auth/password` with current+new password, bcrypt verify then re-hash |
-| 5 | [#46](https://github.com/kai-xlr/infra-sec/issues/46) | `internal/api/admin.go` | Optional `?role=viewer` query param filters results server-side |
-| 6 | [#47](https://github.com/kai-xlr/infra-sec/issues/47) | `internal/models/`, `internal/store/` | Add field, default to `created_at`, auto-update on `UpdateUser` |
+| 3 | [#44](https://github.com/kai-xlr/infra-sec/issues/44) | `internal/handler/auth.go` | Return current user's username and role from JWT claims — no DB lookup needed |
+| 4 | [#45](https://github.com/kai-xlr/infra-sec/issues/45) | `internal/handler/auth.go` | `PUT /auth/password` with current+new password, bcrypt verify then re-hash |
+| 5 | [#46](https://github.com/kai-xlr/infra-sec/issues/46) | `internal/handler/admin.go` | Optional `?role=viewer` query param filters results server-side |
+| 6 | [#47](https://github.com/kai-xlr/infra-sec/issues/47) | `internal/model/`, `internal/store/` | Add field, default to `created_at`, auto-update on `UpdateUser` |
 
 ### Tier 3: Policy Engine Expansion (Tickets 7–10)
 

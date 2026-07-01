@@ -30,9 +30,16 @@ Every authorization decision is recorded as a JSON event in `audit.log`:
 | POST | `/auth/login` | No | — | Authenticate, returns JWT |
 | GET | `/health` | No | — | Health check |
 | GET | `/whoami` | Bearer JWT | — | Identity and role info |
+| GET | `/me` | Bearer JWT | — | Current user's username and role |
+| POST | `/auth/password` | Bearer JWT | — | Change password (current + new) |
 | GET | `/projects` | Bearer JWT | read | List projects |
 | POST | `/projects` | Bearer JWT | write | Create project |
 | DELETE | `/projects` | Bearer JWT | delete | Delete project |
+| GET | `/admin/users` | Bearer JWT | admin | List users (optional `?role=` filter) |
+| POST | `/admin/users` | Bearer JWT | admin | Create user |
+| GET | `/admin/users/{id}` | Bearer JWT | admin | Get user by ID |
+| PUT | `/admin/users/{id}` | Bearer JWT | admin | Update user |
+| DELETE | `/admin/users/{id}` | Bearer JWT | admin | Delete user |
 
 ## Seeded Users
 
@@ -56,10 +63,10 @@ cmd/              — entry point
   server/         — main server
   token/          — JWT generator for testing
 internal/
-  auth/           — JWT parsing and validation
+  token/          — JWT parsing and validation
+  handler/        — HTTP handlers
   middleware/     — auth middleware & RBAC enforcement
-  api/            — HTTP handlers
-  models/         — shared types (CustomClaims, ClaimsKey)
+  model/          — shared types (CustomClaims, User, ClaimsKey)
   rbac/           — role-based authorization
   audit/          — structured audit logging (JSON, append-only)
 tests/            — integration and benchmark tests

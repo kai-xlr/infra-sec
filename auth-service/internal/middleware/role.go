@@ -4,15 +4,15 @@ import (
 	"net/http"
 
 	"auth-service/internal/audit"
-	"auth-service/internal/models"
+	"auth-service/internal/model"
 )
 
 func RequireRole(role string, auditLogger *audit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claimsValue := r.Context().Value(models.ClaimsKey)
+			claimsValue := r.Context().Value(model.ClaimsKey)
 
-			claims, ok := claimsValue.(*models.CustomClaims)
+			claims, ok := claimsValue.(*model.CustomClaims)
 			if !ok || claims == nil {
 				auditLogger.Log(audit.Event{
 					User:     "UNKNOWN",

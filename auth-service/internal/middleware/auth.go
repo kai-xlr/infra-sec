@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"auth-service/internal/auth"
-	"auth-service/internal/models"
+	"auth-service/internal/token"
+	"auth-service/internal/model"
 )
 
 func AuthMiddleware(next http.Handler) http.Handler {
@@ -20,13 +20,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
-		claims, err := auth.ValidateToken(tokenStr)
+		claims, err := token.ValidateToken(tokenStr)
 		if err != nil {
 			jsonError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), models.ClaimsKey, claims)
+		ctx := context.WithValue(r.Context(), model.ClaimsKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

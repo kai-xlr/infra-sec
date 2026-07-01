@@ -1,24 +1,24 @@
 package store
 
 import (
-	"auth-service/internal/models"
+	"auth-service/internal/model"
 	"fmt"
 	"sync"
 	"time"
 )
 
 type Store interface {
-	CreateUser(username, passwordHash, role string) (*models.User, error)
-	GetUser(id int64) (*models.User, error)
-	GetUserByUsername(username string) (*models.User, error)
-	ListUsers(role string) ([]*models.User, error)
-	UpdateUser(id int64, username, passwordHash, role string) (*models.User, error)
+	CreateUser(username, passwordHash, role string) (*model.User, error)
+	GetUser(id int64) (*model.User, error)
+	GetUserByUsername(username string) (*model.User, error)
+	ListUsers(role string) ([]*model.User, error)
+	UpdateUser(id int64, username, passwordHash, role string) (*model.User, error)
 	DeleteUser(id int64) error
 }
 
 type InMemoryStore struct {
 	mu     sync.RWMutex
-	users  map[int64]*models.User
+	users  map[int64]*model.User
 	nextID int64
 }
 
@@ -26,12 +26,12 @@ var _ Store = (*InMemoryStore)(nil)
 
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
-		users:  make(map[int64]*models.User),
+		users:  make(map[int64]*model.User),
 		nextID: 1,
 	}
 }
 
-func (s *InMemoryStore) CreateUser(username, passwordHash, role string) (*models.User, error) {
+func (s *InMemoryStore) CreateUser(username, passwordHash, role string) (*model.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -42,7 +42,7 @@ func (s *InMemoryStore) CreateUser(username, passwordHash, role string) (*models
 	}
 
 	now := time.Now().UTC()
-	user := &models.User{
+	user := &model.User{
 		ID:           s.nextID,
 		Username:     username,
 		PasswordHash: passwordHash,
@@ -57,7 +57,7 @@ func (s *InMemoryStore) CreateUser(username, passwordHash, role string) (*models
 	return user, nil
 }
 
-func (s *InMemoryStore) GetUser(id int64) (*models.User, error) {
+func (s *InMemoryStore) GetUser(id int64) (*model.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -68,7 +68,7 @@ func (s *InMemoryStore) GetUser(id int64) (*models.User, error) {
 	return user, nil
 }
 
-func (s *InMemoryStore) GetUserByUsername(username string) (*models.User, error) {
+func (s *InMemoryStore) GetUserByUsername(username string) (*model.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -80,11 +80,11 @@ func (s *InMemoryStore) GetUserByUsername(username string) (*models.User, error)
 	return nil, fmt.Errorf("user with username '%s' not found", username)
 }
 
-func (s *InMemoryStore) ListUsers(role string) ([]*models.User, error) {
+func (s *InMemoryStore) ListUsers(role string) ([]*model.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	users := make([]*models.User, 0, len(s.users))
+	users := make([]*model.User, 0, len(s.users))
 	for _, u := range s.users {
 		if role == "" || u.Role == role {
 			users = append(users, u)
@@ -96,7 +96,7 @@ func (s *InMemoryStore) ListUsers(role string) ([]*models.User, error) {
 func (s *InMemoryStore) UpdateUser(
 	id int64,
 	username, passwordHash, role string,
-) (*models.User, error) {
+) (*model.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

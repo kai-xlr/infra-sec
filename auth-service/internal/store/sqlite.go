@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"auth-service/internal/models"
+	"auth-service/internal/model"
 
 	_ "modernc.org/sqlite"
 )
@@ -64,7 +64,7 @@ func (s *SQLiteStore) Close() error {
 	return s.db.Close()
 }
 
-func (s *SQLiteStore) CreateUser(username, passwordHash, role string) (*models.User, error) {
+func (s *SQLiteStore) CreateUser(username, passwordHash, role string) (*model.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -94,7 +94,7 @@ func (s *SQLiteStore) CreateUser(username, passwordHash, role string) (*models.U
 		return nil, fmt.Errorf("failed to retrieve last insert id: %w", err)
 	}
 
-	return &models.User{
+	return &model.User{
 		ID:           id,
 		Username:     username,
 		PasswordHash: passwordHash,
@@ -104,7 +104,7 @@ func (s *SQLiteStore) CreateUser(username, passwordHash, role string) (*models.U
 	}, nil
 }
 
-func (s *SQLiteStore) GetUser(id int64) (*models.User, error) {
+func (s *SQLiteStore) GetUser(id int64) (*model.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -113,7 +113,7 @@ func (s *SQLiteStore) GetUser(id int64) (*models.User, error) {
 	FROM users 
 	WHERE id = ?;`
 
-	var user models.User
+	var user model.User
 	var createdAt string
 	var updatedAt string
 
@@ -145,7 +145,7 @@ func (s *SQLiteStore) GetUser(id int64) (*models.User, error) {
 	return &user, nil
 }
 
-func (s *SQLiteStore) GetUserByUsername(username string) (*models.User, error) {
+func (s *SQLiteStore) GetUserByUsername(username string) (*model.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -154,7 +154,7 @@ func (s *SQLiteStore) GetUserByUsername(username string) (*models.User, error) {
 	FROM users 
 	WHERE username = ?;`
 
-	var user models.User
+	var user model.User
 	var createdAt string
 	var updatedAt string
 
@@ -186,7 +186,7 @@ func (s *SQLiteStore) GetUserByUsername(username string) (*models.User, error) {
 	return &user, nil
 }
 
-func (s *SQLiteStore) ListUsers(role string) ([]*models.User, error) {
+func (s *SQLiteStore) ListUsers(role string) ([]*model.User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -207,10 +207,10 @@ func (s *SQLiteStore) ListUsers(role string) ([]*models.User, error) {
 	}
 	defer rows.Close()
 
-	users := make([]*models.User, 0)
+	users := make([]*model.User, 0)
 
 	for rows.Next() {
-		var user models.User
+		var user model.User
 		var createdAt string
 		var updatedAt string
 
@@ -245,7 +245,7 @@ func (s *SQLiteStore) ListUsers(role string) ([]*models.User, error) {
 	return users, nil
 }
 
-func (s *SQLiteStore) UpdateUser(id int64, username, passwordHash, role string) (*models.User, error) {
+func (s *SQLiteStore) UpdateUser(id int64, username, passwordHash, role string) (*model.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -272,7 +272,7 @@ func (s *SQLiteStore) UpdateUser(id int64, username, passwordHash, role string) 
 		return nil, fmt.Errorf("user with id %d not found", id)
 	}
 
-	var user models.User
+	var user model.User
 	var createdAt string
 	var updatedAt string
 

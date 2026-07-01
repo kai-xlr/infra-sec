@@ -10,9 +10,9 @@ import (
 	"os"
 	"testing"
 
-	"auth-service/internal/api"
+	"auth-service/internal/handler"
 	"auth-service/internal/audit"
-	"auth-service/internal/auth"
+	"auth-service/internal/token"
 	"auth-service/internal/middleware"
 	"auth-service/internal/store"
 )
@@ -42,7 +42,7 @@ func setupAdminTestServer(t *testing.T) *httptest.Server {
 		t.Fatalf("failed to create audit logger: %v", err)
 	}
 
-	authHandler := api.NewAuthHandler(s)
+	authHandler := handler.NewAuthHandler(s)
 
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +103,7 @@ func adminRequest(t *testing.T, server *httptest.Server, method, path string, bo
 func TestCreateUserAsAdmin(t *testing.T) {
 	server := setupAdminTestServer(t)
 
-	adminToken, err := auth.GenerateToken("admin", "admin")
+	adminToken, err := token.GenerateToken("admin", "admin")
 	if err != nil {
 		t.Fatalf("failed to generate admin token: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestCreateUserAsAdmin(t *testing.T) {
 func TestCreateUserAsViewerForbidden(t *testing.T) {
 	server := setupAdminTestServer(t)
 
-	viewerToken, err := auth.GenerateToken("viewer", "vieweruser")
+	viewerToken, err := token.GenerateToken("viewer", "vieweruser")
 	if err != nil {
 		t.Fatalf("failed to generate viewer token: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestCreateUserAsViewerForbidden(t *testing.T) {
 func TestListUsers(t *testing.T) {
 	server := setupAdminTestServer(t)
 
-	adminToken, err := auth.GenerateToken("admin", "admin")
+	adminToken, err := token.GenerateToken("admin", "admin")
 	if err != nil {
 		t.Fatalf("failed to generate admin token: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestListUsers(t *testing.T) {
 func TestGetUserByID(t *testing.T) {
 	server := setupAdminTestServer(t)
 
-	adminToken, err := auth.GenerateToken("admin", "admin")
+	adminToken, err := token.GenerateToken("admin", "admin")
 	if err != nil {
 		t.Fatalf("failed to generate admin token: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestGetUserByID(t *testing.T) {
 func TestUpdateUser(t *testing.T) {
 	server := setupAdminTestServer(t)
 
-	adminToken, err := auth.GenerateToken("admin", "admin")
+	adminToken, err := token.GenerateToken("admin", "admin")
 	if err != nil {
 		t.Fatalf("failed to generate admin token: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestUpdateUser(t *testing.T) {
 func TestDeleteUser(t *testing.T) {
 	server := setupAdminTestServer(t)
 
-	adminToken, err := auth.GenerateToken("admin", "admin")
+	adminToken, err := token.GenerateToken("admin", "admin")
 	if err != nil {
 		t.Fatalf("failed to generate admin token: %v", err)
 	}
@@ -256,7 +256,7 @@ func TestDeleteUser(t *testing.T) {
 func TestCRUDLifecycle(t *testing.T) {
 	server := setupAdminTestServer(t)
 
-	adminToken, err := auth.GenerateToken("admin", "admin")
+	adminToken, err := token.GenerateToken("admin", "admin")
 	if err != nil {
 		t.Fatalf("failed to generate admin token: %v", err)
 	}

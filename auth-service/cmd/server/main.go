@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"auth-service/internal/api"
+	"auth-service/internal/handler"
 	"auth-service/internal/audit"
 	"auth-service/internal/middleware"
 	"auth-service/internal/store"
@@ -44,17 +44,17 @@ func main() {
 		}
 	}
 
-	authHandler := api.NewAuthHandler(sqlStore)
+	authHandler := handler.NewAuthHandler(sqlStore)
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", api.HealthHandler)
+	mux.HandleFunc("/health", handler.HealthHandler)
 	mux.HandleFunc("/auth/login", authHandler.LoginHandler)
 
 	protected := http.NewServeMux()
-	protected.HandleFunc("/whoami", api.WhoamiHandler)
+	protected.HandleFunc("/whoami", handler.WhoamiHandler)
 
-	projects := http.HandlerFunc(api.ProjectsHandler)
+	projects := http.HandlerFunc(handler.ProjectsHandler)
 
 	readProjects :=
 		middleware.RequirePermission("read", "project", auditLogger)(projects)

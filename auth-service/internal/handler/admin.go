@@ -1,4 +1,4 @@
-package api
+package handler
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"auth-service/internal/models"
+	"auth-service/internal/model"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -63,7 +63,7 @@ func (h *AuthHandler) ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if users == nil {
-		users = []*models.User{}
+		users = []*model.User{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"auth-service/internal/api"
-	"auth-service/internal/auth"
+	"auth-service/internal/handler"
+	"auth-service/internal/token"
 	"auth-service/internal/middleware"
 	"auth-service/internal/store"
 )
@@ -24,13 +24,13 @@ func setupTestServer(t *testing.T) (*httptest.Server, *store.InMemoryStore) {
 		t.Fatalf("failed to seed admin: %v", err)
 	}
 
-	authHandler := api.NewAuthHandler(s)
+	authHandler := handler.NewAuthHandler(s)
 
 	protected := http.NewServeMux()
-	protected.HandleFunc("/whoami", api.WhoamiHandler)
+	protected.HandleFunc("/whoami", handler.WhoamiHandler)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", api.HealthHandler)
+	mux.HandleFunc("/health", handler.HealthHandler)
 	mux.HandleFunc("/auth/login", authHandler.LoginHandler)
 	mux.Handle("/whoami", middleware.AuthMiddleware(protected))
 
@@ -136,7 +136,7 @@ func TestWhoamiWithoutToken(t *testing.T) {
 func TestWhoamiWithValidToken(t *testing.T) {
 	server, _ := setupTestServer(t)
 
-	token, err := auth.GenerateToken("admin", "admin")
+	token, err := token.GenerateToken("admin", "admin")
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}

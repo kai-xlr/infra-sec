@@ -1,12 +1,12 @@
-package api
+package handler
 
 import (
 	"encoding/json"
 	"net/http"
 	"strings"
 
-	"auth-service/internal/auth"
-	"auth-service/internal/models"
+	"auth-service/internal/token"
+	"auth-service/internal/model"
 	"auth-service/internal/store"
 
 	"golang.org/x/crypto/bcrypt"
@@ -74,7 +74,7 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.GenerateToken(user.Role, user.Username)
+	rawToken, err := token.GenerateToken(user.Role, user.Username)
 	if err != nil {
 		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -82,7 +82,7 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(LoginResponse{Token: token})
+	json.NewEncoder(w).Encode(LoginResponse{Token: rawToken})
 }
 
 type MeResponse struct {
@@ -91,7 +91,7 @@ type MeResponse struct {
 }
 
 func (h *AuthHandler) MeHandler(w http.ResponseWriter, r *http.Request) {
-	claims, ok := r.Context().Value(models.ClaimsKey).(*models.CustomClaims)
+	claims, ok := r.Context().Value(model.ClaimsKey).(*model.CustomClaims)
 	if !ok || claims == nil {
 		http.Error(w, "Unauthorized: Invalid or missing token claims", http.StatusUnauthorized)
 		return
@@ -118,7 +118,7 @@ func (h *AuthHandler) PasswordChangeHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	claims, ok := r.Context().Value(models.ClaimsKey).(*models.CustomClaims)
+	claims, ok := r.Context().Value(model.ClaimsKey).(*model.CustomClaims)
 	if !ok || claims == nil {
 		http.Error(w, "Unauthorized: Invalid or missing token claims", http.StatusUnauthorized)
 		return

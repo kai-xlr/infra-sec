@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"auth-service/internal/models"
+	"auth-service/internal/model"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -21,7 +21,7 @@ func main() {
 	flag.Parse()
 
 	now := time.Now()
-	claims := models.CustomClaims{
+	claims := model.CustomClaims{
 		Role: *role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   *sub,
