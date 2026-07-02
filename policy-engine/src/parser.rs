@@ -2,49 +2,11 @@ use std::fs;
 
 use crate::policy::Policy;
 
-fn validate_policies(policies: &[Policy]) -> Result<(), String> {
-    for (index, policy) in policies.iter().enumerate() {
-        if policy.role.trim().is_empty() {
-            return Err(format!(
-                "Validation error at index {}: 'role' cannot be empty",
-                index
-            ));
-        }
-        if policy.action.trim().is_empty() {
-            return Err(format!(
-                "Validation error at index {}: 'action' cannot be empty",
-                index
-            ));
-        }
-        if policy.effect.trim().is_empty() {
-            return Err(format!(
-                "Validation error at index {}: 'effect' cannot be empty",
-                index
-            ));
-        }
-        match policy.effect.as_str() {
-            "allow" | "deny" => {}
-            invalid_effect => {
-                return Err(format!(
-                    "Validation error at index {}: 'effect' must be 'allow' or 'deny', found '{}'",
-                    index, invalid_effect
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
 pub fn parse_policy_file(path: &str) -> Result<Vec<Policy>, String> {
     let contents =
         fs::read_to_string(path).map_err(|e| format!("Failed to read file at '{}': {}", path, e))?;
 
-    let policies: Vec<Policy> =
-        serde_json::from_str(&contents).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-
-    validate_policies(&policies)?;
-
-    Ok(policies)
+    Policy::from_json(&contents)
 }
 
 #[cfg(test)]
