@@ -16,3 +16,6 @@ harness = false
 
 [[example]]
 name = "shared-counter"
+
+[[example]]
+name = "concurrent-cache"

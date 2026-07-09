@@ -11,6 +11,7 @@ src/
   parser.rs     — JSON policy file loading and validation
   cache.rs      — TTL-based decision caching
   lib.rs        — public API
+examples/       — usage examples (shared-counter, concurrent-cache)
 benches/        — criterion benchmarks (HashMap vs linear comparison)
 tests/          — integration tests
 ```
@@ -59,3 +60,10 @@ linear single evaluation (150 policies)    ~639ns
 HashMap overhead dominates on tiny sets, but at 100+ policies the O(1) lookup is ~4x faster.
 
 Run with `make bench` or `cargo bench`.
+
+## Examples
+
+```bash
+cargo run --example shared-counter    # Arc<Mutex<u64>> shared counter
+cargo run --example concurrent-cache  # Arc<Mutex<HashMap>> concurrent KV cache
+```
