@@ -19,3 +19,9 @@ name = "shared-counter"
 
 [[example]]
 name = "concurrent-cache"
+
+[[example]]
+name = "mpsc-queue"
+
+[[example]]
+name = "fan-out"
