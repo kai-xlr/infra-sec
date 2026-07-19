@@ -25,3 +25,9 @@ name = "mpsc-queue"
 
 [[example]]
 name = "fan-out"
+
+[[example]]
+name = "thread-pool"
+
+[[example]]
+name = "retry-queue"
