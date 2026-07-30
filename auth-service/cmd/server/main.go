@@ -15,6 +15,7 @@ import (
 	"auth-service/internal/audit"
 	"auth-service/internal/middleware"
 	"auth-service/internal/store"
+	"auth-service/internal/worker"
 )
 
 func jsonError(w http.ResponseWriter, msg string, code int) {
@@ -127,6 +128,19 @@ func main() {
 	)
 	mux.Handle("/admin/", adminHandler)
 
+	cleanupInterval := 24 * time.Hour
+	if envInterval := os.Getenv("CLEANUP_INTERVAL"); envInterval != "" {
+		if parsed, err := time.ParseDuration(envInterval); err == nil {
+			cleanupInterval = parsed
+		} else {
+			log.Printf("Invalid CLEANUP_INTERVAL '%s', defaulting to 24h: %v", envInterval, err)
+		}
+	}
+
+	workerDone := make(chan struct{})
+	cleanupWorker := worker.NewCleanupWorker(sqlStore, cleanupInterval, workerDone)
+	cleanupWorker.Start()
+
 	requestLogger := log.New(os.Stdout, "", log.LstdFlags)
 	loggedMux := middleware.RequestLogger(requestLogger)(mux)
 
@@ -147,6 +161,7 @@ func main() {
 
 	<-ctx.Done()
 	stop()
+	close(workerDone)
 	log.Println("Shutting down server...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
