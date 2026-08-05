@@ -18,6 +18,8 @@ type SQLiteStore struct {
 	mu sync.RWMutex
 }
 
+var _ Store = (*SQLiteStore)(nil)
+
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -327,4 +329,28 @@ func (s *SQLiteStore) DeleteUser(id int64) error {
 	}
 
 	return nil
+}
+
+func (s *SQLiteStore) CreateSession(userID int64, username, role string, ttl time.Duration) (*model.Session, error) {
+	panic("not implemented")
+}
+
+func (s *SQLiteStore) GetSessionByToken(token string) (*model.Session, error) {
+	panic("not implemented")
+}
+
+func (s *SQLiteStore) DeleteSession(id int64) error {
+	panic("not implemented")
+}
+
+func (s *SQLiteStore) DeleteSessionsByUserID(userID int64, excludeToken string) error {
+	panic("not implemented")
+}
+
+func (s *SQLiteStore) ListSessionsByUserID(userID int64) ([]*model.Session, error) {
+	panic("not implemented")
+}
+
+func (s *SQLiteStore) DeleteExpiredSessions() (int64, error) {
+	panic("not implemented")
 }

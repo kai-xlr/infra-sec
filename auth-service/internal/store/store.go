@@ -14,6 +14,12 @@ type Store interface {
 	ListUsers(role string) ([]*model.User, error)
 	UpdateUser(id int64, username, passwordHash, role string) (*model.User, error)
 	DeleteUser(id int64) error
+	CreateSession(userID int64, username, role string, ttl time.Duration) (*model.Session, error)
+	GetSessionByToken(token string) (*model.Session, error)
+	DeleteSession(id int64) error
+	DeleteSessionsByUserID(userID int64, excludeToken string) error
+	ListSessionsByUserID(userID int64) ([]*model.Session, error)
+	DeleteExpiredSessions() (int64, error)
 }
 
 type InMemoryStore struct {
@@ -129,4 +135,28 @@ func (s *InMemoryStore) DeleteUser(id int64) error {
 
 	delete(s.users, id)
 	return nil
+}
+
+func (s *InMemoryStore) CreateSession(userID int64, username, role string, ttl time.Duration) (*model.Session, error) {
+	panic("not implemented")
+}
+
+func (s *InMemoryStore) GetSessionByToken(token string) (*model.Session, error) {
+	panic("not implemented")
+}
+
+func (s *InMemoryStore) DeleteSession(id int64) error {
+	panic("not implemented")
+}
+
+func (s *InMemoryStore) DeleteSessionsByUserID(userID int64, excludeToken string) error {
+	panic("not implemented")
+}
+
+func (s *InMemoryStore) ListSessionsByUserID(userID int64) ([]*model.Session, error) {
+	panic("not implemented")
+}
+
+func (s *InMemoryStore) DeleteExpiredSessions() (int64, error) {
+	panic("not implemented")
 }
