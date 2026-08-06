@@ -2,6 +2,8 @@ package store
 
 import (
 	"auth-service/internal/model"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
@@ -23,17 +25,21 @@ type Store interface {
 }
 
 type InMemoryStore struct {
-	mu     sync.RWMutex
-	users  map[int64]*model.User
-	nextID int64
+	mu            sync.RWMutex
+	users         map[int64]*model.User
+	nextID        int64
+	sessions      map[int64]*model.Session
+	nextSessionID int64
 }
 
 var _ Store = (*InMemoryStore)(nil)
 
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
-		users:  make(map[int64]*model.User),
-		nextID: 1,
+		users:         make(map[int64]*model.User),
+		nextID:        1,
+		sessions:      make(map[int64]*model.Session),
+		nextSessionID: 1,
 	}
 }
 
@@ -137,8 +143,37 @@ func (s *InMemoryStore) DeleteUser(id int64) error {
 	return nil
 }
 
-func (s *InMemoryStore) CreateSession(userID int64, username, role string, ttl time.Duration) (*model.Session, error) {
-	panic("not implemented")
+func (s *InMemoryStore) CreateSession(
+	userID int64,
+	username, role string,
+	ttl time.Duration,
+) (*model.Session, error) {
+	if ttl <= 0 {
+		return nil, fmt.Errorf("session TTL must be positive, got %s", ttl)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return nil, fmt.Errorf("failed to generate session token: %w", err)
+	}
+
+	now := time.Now().UTC()
+	session := &model.Session{
+		ID:        s.nextSessionID,
+		UserID:    userID,
+		Username:  username,
+		Role:      role,
+		Token:     hex.EncodeToString(b),
+		CreatedAt: now,
+		ExpiresAt: now.Add(ttl),
+	}
+
+	s.sessions[s.nextSessionID] = session
+	s.nextSessionID++
+
+	return session, nil
 }
 
 func (s *InMemoryStore) GetSessionByToken(token string) (*model.Session, error) {
