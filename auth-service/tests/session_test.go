@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -67,5 +68,44 @@ func TestCreateSessionInvalidTTL(t *testing.T) {
 		if _, err := s.CreateSession(1, "admin", "admin", ttl); err == nil {
 			t.Errorf("expected error for TTL %s, got nil", ttl)
 		}
+	}
+}
+
+func TestGetSessionByToken(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	session, err := s.CreateSession(1, "admin", "admin", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	found, err := s.GetSessionByToken(session.Token)
+	if err != nil {
+		t.Fatalf("GetSessionByToken failed: %v", err)
+	}
+	if found.ID != session.ID {
+		t.Errorf("expected ID %d, got %d", session.ID, found.ID)
+	}
+	if found.Token != session.Token {
+		t.Errorf("expected token '%s', got '%s'", session.Token, found.Token)
+	}
+	if found.Username != session.Username {
+		t.Errorf("expected username '%s', got '%s'", session.Username, found.Username)
+	}
+}
+
+func TestGetSessionByTokenNotFound(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	if _, err := s.CreateSession(1, "admin", "admin", 15*time.Minute); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	_, err := s.GetSessionByToken("nonexistent")
+	if err == nil {
+		t.Fatal("expected error for nonexistent token, got nil")
+	}
+	if !strings.Contains(err.Error(), "session not found") {
+		t.Errorf("expected 'session not found' in error, got '%v'", err)
 	}
 }

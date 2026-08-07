@@ -177,7 +177,15 @@ func (s *InMemoryStore) CreateSession(
 }
 
 func (s *InMemoryStore) GetSessionByToken(token string) (*model.Session, error) {
-	panic("not implemented")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, session := range s.sessions {
+		if session.Token == token {
+			return session, nil
+		}
+	}
+	return nil, fmt.Errorf("session not found")
 }
 
 func (s *InMemoryStore) DeleteSession(id int64) error {
