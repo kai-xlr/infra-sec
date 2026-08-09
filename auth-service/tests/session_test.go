@@ -225,3 +225,46 @@ func TestListSessionsByUserIDExcludesExpired(t *testing.T) {
 		t.Fatalf("expected 1 non-expired session, got %d", len(sessions))
 	}
 }
+
+func TestDeleteExpiredSessions(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	expired, err := s.CreateSession(1, "admin", "admin", time.Millisecond)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	if _, err := s.CreateSession(1, "admin", "admin", time.Millisecond); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	if _, err := s.CreateSession(1, "admin", "admin", 15*time.Minute); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	if _, err := s.CreateSession(2, "viewer", "viewer", time.Millisecond); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	count, err := s.DeleteExpiredSessions()
+	if err != nil {
+		t.Fatalf("DeleteExpiredSessions failed: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 expired sessions deleted, got %d", count)
+	}
+
+	if _, err := s.GetSessionByToken(expired.Token); err == nil {
+		t.Error("expected expired session to be removed, got nil error")
+	}
+
+	sessions, err := s.ListSessionsByUserID(1)
+	if err != nil {
+		t.Fatalf("ListSessionsByUserID failed: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Errorf("expected 1 non-expired session to remain, got %d", len(sessions))
+	}
+	if sessions[0].Role != "admin" || sessions[0].Username != "admin" {
+		t.Errorf("unexpected remaining session: %+v", sessions[0])
+	}
+}

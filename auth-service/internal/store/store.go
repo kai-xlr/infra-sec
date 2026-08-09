@@ -233,5 +233,18 @@ func (s *InMemoryStore) ListSessionsByUserID(userID int64) ([]*model.Session, er
 }
 
 func (s *InMemoryStore) DeleteExpiredSessions() (int64, error) {
-	panic("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	var count int64
+
+	for id, session := range s.sessions {
+		if now.After(session.ExpiresAt) {
+			delete(s.sessions, id)
+			count++
+		}
+	}
+
+	return count, nil
 }
