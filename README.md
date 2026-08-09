@@ -25,11 +25,9 @@ Requires Go ≥1.22 and Rust ≥1.75.
 
 | Phase | Timeline | Focus |
 |---|---|---|
-| 1 | Jun–Sep 2026 | Systems Foundations (Go + Rust) |
-| 2 | Oct–Dec 2026 | Identity & Authorization Foundations |
-| 3 | Jan–Mar 2027 | Policy Systems |
-| 4 | Apr–Jun 2027 | Reliability & Distributed Thinking |
-| 5 | Jul–Aug 2027 | Observability & Operations |
-| 6 | Sep–Dec 2027 | AI Security Infrastructure |
-
-Full roadmap: [ROADMAP.md](./ROADMAP.md)
+| 1 | Jun–Jul 2026 | Systems Foundations (Go + Rust) |
+| 2 | Aug–Oct 2026 | Identity & Authorization Foundations |
+| 3 | Nov 2026–Jan 2027 | Policy Systems |
+| 4 | Feb–Apr 2027 | Reliability & Distributed Thinking |
+| 5 | May–Jun 2027 | Observability & Operations |
+| 6 | Jul–Oct 2027 | AI Security Infrastructure |

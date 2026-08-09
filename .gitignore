@@ -40,3 +40,7 @@ Thumbs.db
 *.swo
 
 infra-sec-week2.json
+
+# Internal planning / agent docs (not for public)
+ROADMAP.md
+AGENTS.md
