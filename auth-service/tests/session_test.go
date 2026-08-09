@@ -109,3 +109,119 @@ func TestGetSessionByTokenNotFound(t *testing.T) {
 		t.Errorf("expected 'session not found' in error, got '%v'", err)
 	}
 }
+
+func TestDeleteSession(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	session, err := s.CreateSession(1, "admin", "admin", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	if err := s.DeleteSession(session.ID); err != nil {
+		t.Fatalf("DeleteSession failed: %v", err)
+	}
+
+	if _, err := s.GetSessionByToken(session.Token); err == nil {
+		t.Error("expected error for deleted session token, got nil")
+	}
+}
+
+func TestDeleteSessionNotFound(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	err := s.DeleteSession(999)
+	if err == nil {
+		t.Fatal("expected error for nonexistent session, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' in error, got '%v'", err)
+	}
+}
+
+func TestDeleteSessionsByUserID(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	keep, err := s.CreateSession(1, "admin", "admin", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	other1, err := s.CreateSession(1, "admin", "admin", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	other2, err := s.CreateSession(2, "viewer", "viewer", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	if err := s.DeleteSessionsByUserID(1, keep.Token); err != nil {
+		t.Fatalf("DeleteSessionsByUserID failed: %v", err)
+	}
+
+	if _, err := s.GetSessionByToken(keep.Token); err != nil {
+		t.Errorf("expected excluded session to remain, got error: %v", err)
+	}
+	if _, err := s.GetSessionByToken(other1.Token); err == nil {
+		t.Error("expected other session for user 1 to be deleted, got nil error")
+	}
+	if _, err := s.GetSessionByToken(other2.Token); err != nil {
+		t.Errorf("expected other user's session to remain, got error: %v", err)
+	}
+}
+
+func TestListSessionsByUserID(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	if _, err := s.CreateSession(1, "admin", "admin", 15*time.Minute); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	time.Sleep(2 * time.Millisecond)
+	if _, err := s.CreateSession(1, "admin", "admin", 15*time.Minute); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	time.Sleep(2 * time.Millisecond)
+	if _, err := s.CreateSession(1, "admin", "admin", 15*time.Minute); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	if _, err := s.CreateSession(2, "viewer", "viewer", 15*time.Minute); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	sessions, err := s.ListSessionsByUserID(1)
+	if err != nil {
+		t.Fatalf("ListSessionsByUserID failed: %v", err)
+	}
+	if len(sessions) != 3 {
+		t.Fatalf("expected 3 sessions, got %d", len(sessions))
+	}
+	for i := 0; i < len(sessions)-1; i++ {
+		if sessions[i].CreatedAt.Before(sessions[i+1].CreatedAt) {
+			t.Errorf(
+				"sessions not sorted by created_at desc: index %d (%v) before index %d (%v)",
+				i, sessions[i].CreatedAt, i+1, sessions[i+1].CreatedAt,
+			)
+		}
+	}
+}
+
+func TestListSessionsByUserIDExcludesExpired(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	if _, err := s.CreateSession(1, "admin", "admin", time.Millisecond); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+	if _, err := s.CreateSession(1, "admin", "admin", 15*time.Minute); err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	sessions, err := s.ListSessionsByUserID(1)
+	if err != nil {
+		t.Fatalf("ListSessionsByUserID failed: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 non-expired session, got %d", len(sessions))
+	}
+}

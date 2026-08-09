@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
@@ -189,15 +190,46 @@ func (s *InMemoryStore) GetSessionByToken(token string) (*model.Session, error) 
 }
 
 func (s *InMemoryStore) DeleteSession(id int64) error {
-	panic("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.sessions[id]; !exists {
+		return fmt.Errorf("session with ID %d not found for deletion", id)
+	}
+
+	delete(s.sessions, id)
+	return nil
 }
 
 func (s *InMemoryStore) DeleteSessionsByUserID(userID int64, excludeToken string) error {
-	panic("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for id, session := range s.sessions {
+		if session.UserID == userID && session.Token != excludeToken {
+			delete(s.sessions, id)
+		}
+	}
+	return nil
 }
 
 func (s *InMemoryStore) ListSessionsByUserID(userID int64) ([]*model.Session, error) {
-	panic("not implemented")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	now := time.Now().UTC()
+	sessions := make([]*model.Session, 0)
+	for _, session := range s.sessions {
+		if session.UserID == userID && session.ExpiresAt.After(now) {
+			sessions = append(sessions, session)
+		}
+	}
+
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].CreatedAt.After(sessions[j].CreatedAt)
+	})
+
+	return sessions, nil
 }
 
 func (s *InMemoryStore) DeleteExpiredSessions() (int64, error) {
