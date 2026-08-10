@@ -44,19 +44,33 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 }
 
 func (s *SQLiteStore) createTables() error {
-	query := `
-	CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		username TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL,
-		role TEXT NOT NULL,
-		created_at TEXT NOT NULL,
-		updated_at TEXT NOT NULL DEFAULT ''
-	);`
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			role TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL DEFAULT ''
+		);`,
+		`CREATE TABLE IF NOT EXISTS sessions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			username TEXT NOT NULL,
+			role TEXT NOT NULL,
+			token TEXT UNIQUE NOT NULL,
+			created_at TEXT NOT NULL,
+			expires_at TEXT NOT NULL,
+			FOREIGN KEY (user_id) REFERENCES users(id)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);`,
+	}
 
-	_, err := s.db.Exec(query)
-	if err != nil {
-		return fmt.Errorf("failed to create user table: %w", err)
+	for _, query := range queries {
+		if _, err := s.db.Exec(query); err != nil {
+			return fmt.Errorf("failed to create table: %w", err)
+		}
 	}
 
 	return nil
