@@ -529,5 +529,21 @@ func (s *SQLiteStore) ListSessionsByUserID(userID int64) ([]*model.Session, erro
 }
 
 func (s *SQLiteStore) DeleteExpiredSessions() (int64, error) {
-	panic("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	query := `DELETE FROM sessions WHERE expires_at < ?;`
+
+	result, err := s.db.Exec(query, now.Format(time.RFC3339))
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete expired sessions: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve rows affected: %w", err)
+	}
+
+	return rowsAffected, nil
 }
