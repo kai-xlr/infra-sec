@@ -436,15 +436,96 @@ func (s *SQLiteStore) GetSessionByToken(token string) (*model.Session, error) {
 }
 
 func (s *SQLiteStore) DeleteSession(id int64) error {
-	panic("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	query := `DELETE FROM sessions WHERE id = ?;`
+
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete session: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("session with ID %d not found for deletion", id)
+	}
+
+	return nil
 }
 
 func (s *SQLiteStore) DeleteSessionsByUserID(userID int64, excludeToken string) error {
-	panic("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	query := `DELETE FROM sessions WHERE user_id = ? AND token != ?;`
+
+	_, err := s.db.Exec(query, userID, excludeToken)
+	if err != nil {
+		return fmt.Errorf("failed to delete sessions for user %d: %w", userID, err)
+	}
+
+	return nil
 }
 
 func (s *SQLiteStore) ListSessionsByUserID(userID int64) ([]*model.Session, error) {
-	panic("not implemented")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	now := time.Now().UTC()
+	query := `
+	SELECT id, user_id, username, role, token, created_at, expires_at
+	FROM sessions
+	WHERE user_id = ? AND expires_at > ?
+	ORDER BY created_at DESC;`
+
+	rows, err := s.db.Query(query, userID, now.Format(time.RFC3339))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query sessions for user %d: %w", userID, err)
+	}
+	defer rows.Close()
+
+	sessions := make([]*model.Session, 0)
+
+	for rows.Next() {
+		var session model.Session
+		var createdAt string
+		var expiresAt string
+
+		err := rows.Scan(
+			&session.ID,
+			&session.UserID,
+			&session.Username,
+			&session.Role,
+			&session.Token,
+			&createdAt,
+			&expiresAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan session row: %w", err)
+		}
+
+		session.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse created_at for session %d: %w", session.ID, err)
+		}
+
+		session.ExpiresAt, err = time.Parse(time.RFC3339, expiresAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse expires_at for session %d: %w", session.ID, err)
+		}
+
+		sessions = append(sessions, &session)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during session row iteration: %w", err)
+	}
+
+	return sessions, nil
 }
 
 func (s *SQLiteStore) DeleteExpiredSessions() (int64, error) {
