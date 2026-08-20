@@ -99,6 +99,11 @@ func main() {
 		middleware.AuthMiddleware(http.HandlerFunc(authHandler.PasswordChangeHandler)),
 	)
 
+	mux.Handle(
+		"/auth/sessions",
+		middleware.AuthMiddleware(http.HandlerFunc(authHandler.SessionsHandler)),
+	)
+
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

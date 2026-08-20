@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"auth-service/internal/handler"
 	"auth-service/internal/token"
@@ -33,6 +34,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *store.InMemoryStore) {
 	mux.HandleFunc("/health", handler.HealthHandler)
 	mux.HandleFunc("/auth/login", authHandler.LoginHandler)
 	mux.Handle("/whoami", middleware.AuthMiddleware(protected))
+	mux.Handle("/auth/sessions", middleware.AuthMiddleware(http.HandlerFunc(authHandler.SessionsHandler)))
 
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -164,6 +166,88 @@ func TestWhoamiWithValidToken(t *testing.T) {
 	}
 	if result["role"] != "admin" {
 		t.Errorf("expected role 'admin', got '%s'", result["role"])
+	}
+}
+
+func TestSessionsWithoutToken(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	resp, err := http.Get(server.URL + "/auth/sessions")
+	if err != nil {
+		t.Fatalf("sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestSessionsWithValidToken(t *testing.T) {
+	server, s := setupTestServer(t)
+
+	user, err := s.GetUserByUsername("admin")
+	if err != nil {
+		t.Fatalf("failed to get user: %v", err)
+	}
+	_, err = s.CreateSession(user.ID, user.Username, user.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("GET", server.URL+"/auth/sessions", nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var sessions []map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&sessions)
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+	if sessions[0]["token"] != nil {
+		t.Error("session response should not include token field")
+	}
+}
+
+func TestSessionsEmptyWhenNoSessions(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("GET", server.URL+"/auth/sessions", nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var sessions []map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&sessions)
+	if len(sessions) != 0 {
+		t.Errorf("expected empty array, got %d sessions", len(sessions))
 	}
 }
 

@@ -124,6 +124,56 @@ func (h *AuthHandler) MeHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+type SessionResponse struct {
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (h *AuthHandler) SessionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	claims, ok := r.Context().Value(model.ClaimsKey).(*model.CustomClaims)
+	if !ok || claims == nil {
+		http.Error(w, "Unauthorized: Invalid or missing token claims", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.store.GetUserByUsername(claims.Username)
+	if err != nil {
+		jsonError(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	sessions, err := h.store.ListSessionsByUserID(user.ID)
+	if err != nil {
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	resp := make([]SessionResponse, 0, len(sessions))
+	for _, s := range sessions {
+		resp = append(resp, SessionResponse{
+			ID:        s.ID,
+			UserID:    s.UserID,
+			Username:  s.Username,
+			Role:      s.Role,
+			CreatedAt: s.CreatedAt,
+			ExpiresAt: s.ExpiresAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
 type PasswordChangeRequest struct {
 	CurrentPassword string `json:"currentpassword"`
 	NewPassword     string `json:"newpassword"`
