@@ -3,7 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"auth-service/internal/token"
 	"auth-service/internal/model"
@@ -29,7 +32,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token        string `json:"token"`
+	SessionToken string `json:"session_token"`
 }
 
 func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -80,9 +84,22 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionTTL := 24 * time.Hour
+	if v := os.Getenv("SESSION_TTL"); v != "" {
+		if hours, err := strconv.Atoi(v); err == nil && hours > 0 {
+			sessionTTL = time.Duration(hours) * time.Hour
+		}
+	}
+
+	session, err := h.store.CreateSession(user.ID, user.Username, user.Role, sessionTTL)
+	if err != nil {
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(LoginResponse{Token: rawToken})
+	json.NewEncoder(w).Encode(LoginResponse{Token: rawToken, SessionToken: session.Token})
 }
 
 type MeResponse struct {

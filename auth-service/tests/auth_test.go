@@ -40,7 +40,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *store.InMemoryStore) {
 	return server, s
 }
 
-func login(t *testing.T, server *httptest.Server, username, password string) (int, string) {
+func login(t *testing.T, server *httptest.Server, username, password string) (int, string, string) {
 	t.Helper()
 
 	body := `{"username":"` + username + `","password":"` + password + `"}`
@@ -52,7 +52,7 @@ func login(t *testing.T, server *httptest.Server, username, password string) (in
 
 	var result map[string]string
 	json.NewDecoder(resp.Body).Decode(&result)
-	return resp.StatusCode, result["token"]
+	return resp.StatusCode, result["token"], result["session_token"]
 }
 
 func TestHealthEndpoint(t *testing.T) {
@@ -72,19 +72,22 @@ func TestHealthEndpoint(t *testing.T) {
 func TestLoginValidCredentials(t *testing.T) {
 	server, _ := setupTestServer(t)
 
-	code, token := login(t, server, "admin", "admin123")
+	code, token, sessionToken := login(t, server, "admin", "admin123")
 	if code != http.StatusOK {
 		t.Errorf("expected 200, got %d", code)
 	}
 	if token == "" {
 		t.Error("expected non-empty token")
 	}
+	if sessionToken == "" {
+		t.Error("expected non-empty session_token")
+	}
 }
 
 func TestLoginInvalidPassword(t *testing.T) {
 	server, _ := setupTestServer(t)
 
-	code, _ := login(t, server, "admin", "wrongpassword")
+	code, _, _ := login(t, server, "admin", "wrongpassword")
 	if code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", code)
 	}
