@@ -435,6 +435,48 @@ func (s *SQLiteStore) GetSessionByToken(token string) (*model.Session, error) {
 	return &session, nil
 }
 
+func (s *SQLiteStore) GetSessionByID(id int64) (*model.Session, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	query := `
+	SELECT id, user_id, username, role, token, created_at, expires_at
+	FROM sessions
+	WHERE id = ?;`
+
+	var session model.Session
+	var createdAt string
+	var expiresAt string
+
+	err := s.db.QueryRow(query, id).Scan(
+		&session.ID,
+		&session.UserID,
+		&session.Username,
+		&session.Role,
+		&session.Token,
+		&createdAt,
+		&expiresAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("session with ID %d not found", id)
+		}
+		return nil, fmt.Errorf("failed to fetch session by id: %w", err)
+	}
+
+	session.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse created_at: %w", err)
+	}
+
+	session.ExpiresAt, err = time.Parse(time.RFC3339, expiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse expires_at: %w", err)
+	}
+
+	return &session, nil
+}
+
 func (s *SQLiteStore) DeleteSession(id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

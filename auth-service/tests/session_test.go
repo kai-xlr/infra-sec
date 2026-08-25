@@ -110,6 +110,41 @@ func TestGetSessionByTokenNotFound(t *testing.T) {
 	}
 }
 
+func TestGetSessionByID(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	session, err := s.CreateSession(1, "admin", "admin", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
+	}
+
+	found, err := s.GetSessionByID(session.ID)
+	if err != nil {
+		t.Fatalf("GetSessionByID failed: %v", err)
+	}
+	if found.ID != session.ID {
+		t.Errorf("expected ID %d, got %d", session.ID, found.ID)
+	}
+	if found.UserID != session.UserID {
+		t.Errorf("expected UserID %d, got %d", session.UserID, found.UserID)
+	}
+	if found.Username != session.Username {
+		t.Errorf("expected username '%s', got '%s'", session.Username, found.Username)
+	}
+}
+
+func TestGetSessionByIDNotFound(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	_, err := s.GetSessionByID(999)
+	if err == nil {
+		t.Fatal("expected error for nonexistent session, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' in error, got '%v'", err)
+	}
+}
+
 func TestDeleteSession(t *testing.T) {
 	s := store.NewInMemoryStore()
 

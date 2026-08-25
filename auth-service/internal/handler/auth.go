@@ -174,6 +174,55 @@ func (h *AuthHandler) SessionsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+func (h *AuthHandler) DeleteSessionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	claims, ok := r.Context().Value(model.ClaimsKey).(*model.CustomClaims)
+	if !ok || claims == nil {
+		http.Error(w, "Unauthorized: Invalid or missing token claims", http.StatusUnauthorized)
+		return
+	}
+
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		jsonError(w, "Missing session ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		jsonError(w, "Invalid session ID format", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.store.GetUserByUsername(claims.Username)
+	if err != nil {
+		jsonError(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	session, err := h.store.GetSessionByID(id)
+	if err != nil {
+		jsonError(w, "Session not found", http.StatusNotFound)
+		return
+	}
+
+	if session.UserID != user.ID {
+		jsonError(w, "Session not found", http.StatusNotFound)
+		return
+	}
+
+	if err := h.store.DeleteSession(id); err != nil {
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type PasswordChangeRequest struct {
 	CurrentPassword string `json:"currentpassword"`
 	NewPassword     string `json:"newpassword"`

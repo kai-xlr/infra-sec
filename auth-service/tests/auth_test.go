@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +36,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *store.InMemoryStore) {
 	mux.HandleFunc("/auth/login", authHandler.LoginHandler)
 	mux.Handle("/whoami", middleware.AuthMiddleware(protected))
 	mux.Handle("/auth/sessions", middleware.AuthMiddleware(http.HandlerFunc(authHandler.SessionsHandler)))
+	mux.Handle("/auth/sessions/{id}", middleware.AuthMiddleware(http.HandlerFunc(authHandler.DeleteSessionHandler)))
 
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -248,6 +250,121 @@ func TestSessionsEmptyWhenNoSessions(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&sessions)
 	if len(sessions) != 0 {
 		t.Errorf("expected empty array, got %d sessions", len(sessions))
+	}
+}
+
+func TestDeleteSessionWithoutToken(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions/1", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete session request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteSessionValid(t *testing.T) {
+	server, s := setupTestServer(t)
+
+	user, err := s.GetUserByUsername("admin")
+	if err != nil {
+		t.Fatalf("failed to get user: %v", err)
+	}
+	session, err := s.CreateSession(user.ID, user.Username, user.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions/"+strconv.FormatInt(session.ID, 10), nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete session request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", resp.StatusCode)
+	}
+
+	listReq, _ := http.NewRequest("GET", server.URL+"/auth/sessions", nil)
+	listReq.Header.Set("Authorization", "Bearer "+jwtToken)
+	listResp, err := http.DefaultClient.Do(listReq)
+	if err != nil {
+		t.Fatalf("list sessions request failed: %v", err)
+	}
+	defer listResp.Body.Close()
+
+	var sessions []map[string]interface{}
+	json.NewDecoder(listResp.Body).Decode(&sessions)
+	for _, s := range sessions {
+		if s["id"].(float64) == float64(session.ID) {
+			t.Errorf("expected session %d to be deleted, but it was found", session.ID)
+		}
+	}
+}
+
+func TestDeleteSessionHandlerNotFound(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions/999", nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete session request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteSessionOtherUser(t *testing.T) {
+	server, s := setupTestServer(t)
+
+	otherUser, err := s.CreateUser("viewer1", "$2a$10$dv0AcULv0j9unVsTZvIxpeaGYLryIi17tEiiZp./dUm4Ab8fXQvqq", "viewer")
+	if err != nil {
+		t.Fatalf("failed to create other user: %v", err)
+	}
+	otherSession, err := s.CreateSession(otherUser.ID, otherUser.Username, otherUser.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create other user session: %v", err)
+	}
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions/"+strconv.FormatInt(otherSession.ID, 10), nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete session request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
 	}
 }
 

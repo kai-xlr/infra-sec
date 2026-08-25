@@ -104,6 +104,11 @@ func main() {
 		middleware.AuthMiddleware(http.HandlerFunc(authHandler.SessionsHandler)),
 	)
 
+	mux.Handle(
+		"/auth/sessions/{id}",
+		middleware.AuthMiddleware(http.HandlerFunc(authHandler.DeleteSessionHandler)),
+	)
+
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

@@ -19,6 +19,7 @@ type Store interface {
 	DeleteUser(id int64) error
 	CreateSession(userID int64, username, role string, ttl time.Duration) (*model.Session, error)
 	GetSessionByToken(token string) (*model.Session, error)
+	GetSessionByID(id int64) (*model.Session, error)
 	DeleteSession(id int64) error
 	DeleteSessionsByUserID(userID int64, excludeToken string) error
 	ListSessionsByUserID(userID int64) ([]*model.Session, error)
@@ -187,6 +188,17 @@ func (s *InMemoryStore) GetSessionByToken(token string) (*model.Session, error) 
 		}
 	}
 	return nil, fmt.Errorf("session not found")
+}
+
+func (s *InMemoryStore) GetSessionByID(id int64) (*model.Session, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	session, exists := s.sessions[id]
+	if !exists {
+		return nil, fmt.Errorf("session with ID %d not found", id)
+	}
+	return session, nil
 }
 
 func (s *InMemoryStore) DeleteSession(id int64) error {
