@@ -101,7 +101,16 @@ func main() {
 
 	mux.Handle(
 		"/auth/sessions",
-		middleware.AuthMiddleware(http.HandlerFunc(authHandler.SessionsHandler)),
+		middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				authHandler.SessionsHandler(w, r)
+			case http.MethodDelete:
+				authHandler.DeleteAllSessionsHandler(w, r)
+			default:
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})),
 	)
 
 	mux.Handle(

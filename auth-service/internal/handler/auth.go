@@ -223,6 +223,38 @@ func (h *AuthHandler) DeleteSessionHandler(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *AuthHandler) DeleteAllSessionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	claims, ok := r.Context().Value(model.ClaimsKey).(*model.CustomClaims)
+	if !ok || claims == nil {
+		http.Error(w, "Unauthorized: Invalid or missing token claims", http.StatusUnauthorized)
+		return
+	}
+
+	currentSessionToken := r.Header.Get("X-Session-Token")
+	if currentSessionToken == "" {
+		jsonError(w, "X-Session-Token header required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.store.GetUserByUsername(claims.Username)
+	if err != nil {
+		jsonError(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if err := h.store.DeleteSessionsByUserID(user.ID, currentSessionToken); err != nil {
+		jsonError(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type PasswordChangeRequest struct {
 	CurrentPassword string `json:"currentpassword"`
 	NewPassword     string `json:"newpassword"`

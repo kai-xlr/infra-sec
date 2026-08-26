@@ -16,6 +16,12 @@ import (
 	"auth-service/internal/store"
 )
 
+func jsonError(w http.ResponseWriter, msg string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
 func setupTestServer(t *testing.T) (*httptest.Server, *store.InMemoryStore) {
 	t.Helper()
 
@@ -35,7 +41,16 @@ func setupTestServer(t *testing.T) (*httptest.Server, *store.InMemoryStore) {
 	mux.HandleFunc("/health", handler.HealthHandler)
 	mux.HandleFunc("/auth/login", authHandler.LoginHandler)
 	mux.Handle("/whoami", middleware.AuthMiddleware(protected))
-	mux.Handle("/auth/sessions", middleware.AuthMiddleware(http.HandlerFunc(authHandler.SessionsHandler)))
+	mux.Handle("/auth/sessions", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			authHandler.SessionsHandler(w, r)
+		case http.MethodDelete:
+			authHandler.DeleteAllSessionsHandler(w, r)
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
 	mux.Handle("/auth/sessions/{id}", middleware.AuthMiddleware(http.HandlerFunc(authHandler.DeleteSessionHandler)))
 
 	server := httptest.NewServer(mux)
@@ -365,6 +380,188 @@ func TestDeleteSessionOtherUser(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteAllSessionsWithoutToken(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete all sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteAllSessionsMissingSessionToken(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions", nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete all sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteAllSessionsValid(t *testing.T) {
+	server, s := setupTestServer(t)
+
+	user, err := s.GetUserByUsername("admin")
+	if err != nil {
+		t.Fatalf("failed to get user: %v", err)
+	}
+
+	currentSession, err := s.CreateSession(user.ID, user.Username, user.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create current session: %v", err)
+	}
+	otherSession, err := s.CreateSession(user.ID, user.Username, user.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create other session: %v", err)
+	}
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions", nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("X-Session-Token", currentSession.Token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete all sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", resp.StatusCode)
+	}
+
+	listReq, _ := http.NewRequest("GET", server.URL+"/auth/sessions", nil)
+	listReq.Header.Set("Authorization", "Bearer "+jwtToken)
+	listResp, err := http.DefaultClient.Do(listReq)
+	if err != nil {
+		t.Fatalf("list sessions request failed: %v", err)
+	}
+	defer listResp.Body.Close()
+
+	var sessions []map[string]interface{}
+	json.NewDecoder(listResp.Body).Decode(&sessions)
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session remaining, got %d", len(sessions))
+	}
+
+	remainingID := int64(sessions[0]["id"].(float64))
+	if remainingID != currentSession.ID {
+		t.Errorf("expected remaining session %d, got %d", currentSession.ID, remainingID)
+	}
+
+	_, err = s.GetSessionByToken(otherSession.Token)
+	if err == nil {
+		t.Error("expected other session to be deleted")
+	}
+}
+
+func TestDeleteAllSessionsNoOtherSessions(t *testing.T) {
+	server, s := setupTestServer(t)
+
+	user, err := s.GetUserByUsername("admin")
+	if err != nil {
+		t.Fatalf("failed to get user: %v", err)
+	}
+
+	currentSession, err := s.CreateSession(user.ID, user.Username, user.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create current session: %v", err)
+	}
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions", nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("X-Session-Token", currentSession.Token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete all sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteAllSessionsOtherUserSessionsUntouched(t *testing.T) {
+	server, s := setupTestServer(t)
+
+	adminUser, err := s.GetUserByUsername("admin")
+	if err != nil {
+		t.Fatalf("failed to get admin user: %v", err)
+	}
+
+	otherUser, err := s.CreateUser("viewer1", "$2a$10$dv0AcULv0j9unVsTZvIxpeaGYLryIi17tEiiZp./dUm4Ab8fXQvqq", "viewer")
+	if err != nil {
+		t.Fatalf("failed to create other user: %v", err)
+	}
+
+	adminSession, err := s.CreateSession(adminUser.ID, adminUser.Username, adminUser.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create admin session: %v", err)
+	}
+	_, err = s.CreateSession(adminUser.ID, adminUser.Username, adminUser.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create admin other session: %v", err)
+	}
+	otherSession, err := s.CreateSession(otherUser.ID, otherUser.Username, otherUser.Role, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to create other user session: %v", err)
+	}
+
+	jwtToken, err := token.GenerateToken("admin", "admin")
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	req, _ := http.NewRequest("DELETE", server.URL+"/auth/sessions", nil)
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("X-Session-Token", adminSession.Token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete all sessions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", resp.StatusCode)
+	}
+
+	_, err = s.GetSessionByToken(otherSession.Token)
+	if err != nil {
+		t.Errorf("expected other user's session to remain, got error: %v", err)
 	}
 }
 
